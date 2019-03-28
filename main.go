@@ -1,5 +1,29 @@
 package main
 
+import (
+	"strings"
+	"fmt"
+	"bytes"
+)
+
+// OrgToHTML ..
+func OrgToHTML(text string) string {
+	var buffer bytes.Buffer
+
+	for _, str := range strings.Split(text, "\n") {
+		org.Append(str)
+	}
+	for _, str := range org.Children {
+		s := str.HTML()
+		fmt.Println(s)
+		buffer.WriteString(s)
+	}
+	// for _, i := range org.Debug() {
+	//	fmt.Println(i)
+	// }
+	return buffer.String()
+}
+
 // main ..
 func main() {
 	text := `*bold* bold* *bold\* \*bold\* \*bold*
@@ -45,5 +69,13 @@ func main() {
 	aaa
 	#+end_src`
 	// TOHTML(text)
+	//	text = `
+	// ** heading2
+	//	#+begin_src bash
+	//	ssssss
+	//	cccccaa
+	//	11cccccaa
+	//	aaa
+	//	#+end_src`
 	OrgToHTML(text)
 }

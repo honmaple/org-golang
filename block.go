@@ -1,20 +1,39 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
 )
+
+// BlockType ..
+type BlockType interface {
+	Match(text string) bool
+	MatchEnd(text string) bool
+	Append(text string)
+	HTML() string
+	Open(text string) BlockType
+	Close(text string)
+	AddChild(block BlockType)
+	SetParent(block BlockType)
+	SetNeedParse(needparse bool)
+	SetLabel(text string)
+
+	GetName() string
+	GetNeedParse() bool
+	GetFirstLine() string
+	GetParent() BlockType
+	Debug() []string
+}
 
 // Block ..
 type Block struct {
 	Name      string
 	FirstLine string
 	LastLine  string
-	Parent    *Block
-	Children  []*Block
-	Current   *Block
+	Parent    BlockType
+	Children  []BlockType
+	Current   BlockType
 	NeedParse bool
 	Escape    bool
 	Regex     *regexp.Regexp
@@ -22,6 +41,27 @@ type Block struct {
 	Attr      map[string]string
 }
 
+// Center ..
+type Center struct {
+	Block
+}
+
+// Verse ..
+type Verse struct {
+	Block
+}
+
+// Export ..
+type Export struct {
+	Block
+}
+
+// Quote ..
+type Quote struct {
+	Block
+}
+
+// checkInList ..
 func checkInList(f []string, v string) bool {
 	for i := range f {
 		if f[i] == v {
@@ -31,104 +71,55 @@ func checkInList(f []string, v string) bool {
 	return false
 }
 
-func headingEnd(s *Block, text string) bool {
-	if s.Parent == nil {
-		return false
-	}
-	if match := s.Regex.FindStringSubmatch(text); len(match) > 2 {
-		if match1 := s.Regex.FindStringSubmatch(s.Parent.FirstLine); len(match1) > 2 && len(match[1]) <= len(match1[1]) {
-			return true
-		}
-		return false
-	}
-	return false
+// GetName ..
+func (s *Block) GetName() string {
+	return s.Name
 }
 
-func listEnd(s *Block, text string) bool {
-	if text == "" {
-		return false
-	}
-	match := s.Regex.FindStringSubmatch(s.FirstLine)
-	depth := len(match[1])
-	if !s.Match(text) && depth >= len(text)-len(strings.TrimSpace(text)) {
-		return true
-	}
-	return false
+// GetNeedParse ..
+func (s *Block) GetNeedParse() bool {
+	return s.NeedParse
 }
 
-func tableEnd(s *Block, text string) bool {
-	if s.Match(text) {
-		return false
-	}
-	return true
-	return tablesep.MatchString(text)
+// GetFirstLine ..
+func (s *Block) GetFirstLine() string {
+	return s.FirstLine
 }
 
-func headingHTML(s *Block) string {
-	strs := make([]string, 0)
-	if match := s.Regex.FindStringSubmatch(s.FirstLine); len(match) > 2 {
-		strs = append(strs, fmt.Sprintf(s.Label, len(match[1]), match[2]))
-	}
-	for _, child := range s.Children {
-		strs = append(strs, child.String())
-	}
-	return strings.Join(strs, "\n")
+// GetParent ..
+func (s *Block) GetParent() BlockType {
+	return s.Parent
 }
 
-func srcHTML(s *Block) string {
-	strs := make([]string, 0)
-	language := "language"
-	if match := s.Regex.FindStringSubmatch(s.FirstLine); len(match) > 2 {
-		language = match[2]
-	}
-	for _, child := range s.Children {
-		strs = append(strs, child.String())
-	}
-	return fmt.Sprintf(s.Label, language, strings.Join(strs, "\n"))
+// SetParent ..
+func (s *Block) SetParent(block BlockType) {
+	s.Parent = block
 }
 
-func inlineblockHTML(s *Block) string {
-	inlinetext := &InlineText{
-		Text:      s.FirstLine,
-		NeedParse: s.NeedParse,
-		Escape:    s.Escape,
-	}
-	if s.Label == "" {
-		return inlinetext.HTML()
-	}
-	return fmt.Sprintf(s.Label, inlinetext.HTML())
+// SetNeedParse ..
+func (s *Block) SetNeedParse(needparse bool) {
+	s.NeedParse = needparse
 }
 
-// Open ..
-func (s *Block) Open(firstline string) *Block {
-	b := &Block{
+// SetLabel ..
+func (s *Block) SetLabel(label string) {
+	s.Label = label
+}
+
+// open ..
+func (s *Block) open(firstline string) *Block {
+	return &Block{
 		Name:      s.Name,
 		Label:     s.Label,
 		Regex:     s.Regex,
 		NeedParse: s.NeedParse,
 		FirstLine: firstline,
 	}
-	switch b.Name {
-	case table.Name:
-		b.AddChild(tablerow.Open(b.FirstLine))
-	case tablerow.Name:
-		match := b.Regex.FindStringSubmatch(b.FirstLine)
-		for _, i := range strings.Split(match[1], "|") {
-			b.AddChild(tablecell.Open(i))
-		}
-	case paragraph.Name:
-		p := inlineblock.Open(firstline)
-		p.NeedParse = p.NeedParse
-		b.AddChild(p)
-	case unorderlist.Name, orderlist.Name:
-		match := b.Regex.FindStringSubmatch(b.FirstLine)
-		title := match[3]
-		b.AddChild(listitem.Open(title))
-	case listitem.Name:
-		b.AddChild(inlineblock.Open(b.FirstLine))
-	}
+}
 
-	return b
+// Open ..
+func (s *Block) Open(firstline string) BlockType {
+	return s.open(firstline)
 }
 
 // Close ..
@@ -136,27 +127,16 @@ func (s *Block) Close(lastline string) {
 	s.LastLine = lastline
 }
 
-// String ..
-func (s *Block) String() string {
-	switch s.Name {
-	case heading.Name:
-		return headingHTML(s)
-	case src.Name:
-		return srcHTML(s)
-	case example.Name:
-		return srcHTML(s)
-	case inlineblock.Name, tablecell.Name:
-		return inlineblockHTML(s)
-	default:
-		strs := make([]string, 0)
-		for _, child := range s.Children {
-			strs = append(strs, child.String())
-		}
-		if s.Label == "" {
-			return strings.Join(strs, "\n")
-		}
-		return fmt.Sprintf(s.Label, strings.Join(strs, "\n"))
+// HTML ..
+func (s *Block) HTML() string {
+	strs := make([]string, 0)
+	for _, child := range s.Children {
+		strs = append(strs, child.HTML())
 	}
+	if s.Label == "" {
+		return strings.Join(strs, "\n")
+	}
+	return fmt.Sprintf(s.Label, strings.Join(strs, "\n"))
 }
 
 // Debug ..
@@ -171,11 +151,11 @@ func (s *Block) Debug() []string {
 		if parent == nil {
 			break
 		}
-		parent = parent.Parent
+		parent = parent.GetParent()
 		count = count + "\t"
 	}
 	for _, str := range s.Children {
-		d := fmt.Sprintf("%s%s%s", count, str.Name, strings.Join(str.Debug(), ""))
+		d := fmt.Sprintf("%s%s%s", count, str.GetName(), strings.Join(str.Debug(), ""))
 		strs = append(strs, d)
 	}
 	return strs
@@ -191,14 +171,6 @@ func (s *Block) Match(text string) bool {
 
 // MatchEnd ..
 func (s *Block) MatchEnd(text string) bool {
-	switch s.Name {
-	case heading.Name:
-		return headingEnd(s, text)
-	case unorderlist.Name, orderlist.Name:
-		return listEnd(s, text)
-	case table.Name:
-		return tableEnd(s, text)
-	}
 	if regex, ok := regexs[s.Name]; ok {
 		return regex.MatchString(text)
 	}
@@ -206,8 +178,8 @@ func (s *Block) MatchEnd(text string) bool {
 }
 
 // AddChild ..
-func (s *Block) AddChild(block *Block) {
-	block.Parent = s
+func (s *Block) AddChild(block BlockType) {
+	block.SetParent(s)
 	s.Children = append(s.Children, block)
 }
 
@@ -220,40 +192,26 @@ func (s *Block) Append(text string) {
 	p := s.Current
 
 	for {
-		if s.Current.Name != paragraph.Name {
+		if s.Current.GetName() != paragraph.GetName() {
 			break
 		}
-		s.Current = s.Current.Parent
+		s.Current = s.Current.GetParent()
 	}
 
 	if s.Current.MatchEnd(text) {
 		s.Current.Close(text)
-		if !checkInList([]string{table.Name, unorderlist.Name, orderlist.Name}, s.Current.Name) {
-			s.Current = s.Current.Parent
+		if !checkInList([]string{table.Name, unorderlist.Name, orderlist.Name}, s.Current.GetName()) {
+			s.Current = s.Current.GetParent()
 			return
 		}
-		s.Current = s.Current.Parent
+		s.Current = s.Current.GetParent()
 	}
 
-	if s.Current.Name == table.Name {
-		s.Current.AddChild(tablerow.Open(text))
+	if checkInList([]string{table.Name, unorderlist.Name, orderlist.Name}, s.Current.GetName()) {
+		s.Current.Append(text)
 		return
 	}
-	if s.Current.Name == unorderlist.Name || s.Current.Name == orderlist.Name {
-		match := s.Current.Regex.FindStringSubmatch(s.Current.FirstLine)
-		depth := len(match[1])
-		if s.Current.Match(text) {
-			match1 := s.Current.Regex.FindStringSubmatch(text)
-			depth1 := len(match1[1])
-			title1 := match1[3]
-			if depth == depth1 {
-				s.Current.AddChild(listitem.Open(title1))
-				return
-			}
-		}
-		s.Current.Children[len(s.Current.Children)-1].Append(text)
-		return
-	}
+
 	for _, block := range blocks {
 		if block.Match(text) {
 			b := block.Open(text)
@@ -271,18 +229,18 @@ func (s *Block) Append(text string) {
 		return
 	}
 
-	if p.Name == paragraph.Name {
+	if p.GetName() == paragraph.Name {
 		b := inlineblock.Open(text)
-		b.NeedParse = p.NeedParse
+		b.SetNeedParse(p.GetNeedParse())
 		p.AddChild(b)
 		s.Current = p
 		return
 	}
 
 	b := paragraph.Open(text)
-	if !s.Current.NeedParse {
-		b.Label = ""
-		b.NeedParse = false
+	if !s.Current.GetNeedParse() {
+		b.SetLabel("")
+		b.SetNeedParse(false)
 	}
 	s.Current.AddChild(b)
 	s.Current = b
@@ -297,8 +255,6 @@ var regexs = map[string]*regexp.Regexp{
 	"export":  regexp.MustCompile(`\s*#\+(END_EXPORT|end_export)\s*$`),
 	"quote":   regexp.MustCompile(`\s*#\+(END_QUOTE|end_quote)\s*$`),
 }
-
-var tablesep = regexp.MustCompile(`^(\s*)\|((?:\+|-)*?)\|?$`)
 
 var org = &Block{
 	Name:      "org",
@@ -318,108 +274,43 @@ var blankline = &Block{
 	NeedParse: false,
 }
 
-var heading = &Block{
-	Name:      "heading",
-	Regex:     regexp.MustCompile(`^(\*+)\s+(.+)$`),
-	Label:     "<h%[1]d>%[2]s</h%[1]d>",
-	NeedParse: true,
+var center = &Center{
+	Block: Block{
+		Name:      "center",
+		Regex:     regexp.MustCompile(`\s*#\+(BEGIN_CENTER|begin_center)$`),
+		Label:     "<p class=\"org-center\">\n%[1]s\n</p>",
+		NeedParse: true,
+	},
 }
 
-var src = &Block{
-	Name:      "src",
-	Regex:     regexp.MustCompile(`\s*#\+(BEGIN_SRC|begin_src)\s+(.+)$`),
-	Label:     "<pre class=\"%[1]s\">\n%[2]s\n</pre>",
-	NeedParse: false,
-}
-var example = &Block{
-	Name:      "example",
-	Regex:     regexp.MustCompile(`\s*#\+(BEGIN_EXAMPLE|begin_example)$`),
-	Label:     "<pre class=\"%[1]s\">\n%[2]s\n</pre>",
-	NeedParse: false,
+var export = &Export{
+	Block: Block{
+		Name:      "export",
+		Regex:     regexp.MustCompile(`\s*#\+(BEGIN_EXPORT|begin_export)\s+(.+)$`),
+		Label:     "%[1]s",
+		NeedParse: false,
+	},
 }
 
-var center = &Block{
-	Name:      "center",
-	Regex:     regexp.MustCompile(`\s*#\+(BEGIN_CENTER|begin_center)$`),
-	Label:     "<p class=\"org-center\">\n%[1]s\n</p>",
-	NeedParse: true,
+var verse = &Verse{
+	Block: Block{
+		Name:      "verse",
+		Regex:     regexp.MustCompile(`\s*#\+(BEGIN_VERSE|begin_verse)$`),
+		Label:     "<p class=\"org-verse\">\n%[1]s\n</p>",
+		NeedParse: true,
+	},
 }
 
-var export = &Block{
-	Name:      "export",
-	Regex:     regexp.MustCompile(`\s*#\+(BEGIN_EXPORT|begin_export)\s+(.+)$`),
-	Label:     "%[1]s",
-	NeedParse: false,
+var quote = &Quote{
+	Block: Block{
+		Name:      "quote",
+		Regex:     regexp.MustCompile(`\s*#\+(BEGIN_QUOTE|begin_quote)$`),
+		Label:     "<blockquote>\n%[1]s\n</blockquote>",
+		NeedParse: true,
+	},
 }
 
-var verse = &Block{
-	Name:      "verse",
-	Regex:     regexp.MustCompile(`\s*#\+(BEGIN_VERSE|begin_verse)$`),
-	Label:     "<p class=\"org-verse\">\n%[1]s\n</p>",
-	NeedParse: true,
-}
-
-var quote = &Block{
-	Name:      "quote",
-	Regex:     regexp.MustCompile(`\s*#\+(BEGIN_QUOTE|begin_quote)$`),
-	Label:     "<blockquote>\n%[1]s\n</blockquote>",
-	NeedParse: true,
-}
-
-var paragraph = &Block{
-	Name:      "paragraph",
-	NeedParse: true,
-	Label:     "<p>\n%[1]s\n</p>",
-}
-
-var inlineblock = &Block{
-	Name:      "inlineblock",
-	NeedParse: true,
-	Label:     "%[1]s",
-}
-
-var listitem = &Block{
-	Name:      "listitem",
-	Label:     "<li>%[1]s</li>",
-	NeedParse: true,
-}
-
-var orderlist = &Block{
-	Name:      "orderlist",
-	Regex:     regexp.MustCompile(`(\s*)\d+(\.|\))\s+(.+)$`),
-	Label:     "<ul>\n%[1]s\n</ul>",
-	NeedParse: true,
-}
-
-var unorderlist = &Block{
-	Name:      "unorderlist",
-	Regex:     regexp.MustCompile(`(\s*)(-|\+)\s+(.+)$`),
-	Label:     "<ul>\n%[1]s\n</ul>",
-	NeedParse: true,
-}
-
-var table = &Block{
-	Name:      "table",
-	Regex:     regexp.MustCompile(`\s*\|(.+?)\|*$`),
-	Label:     "<table>\n%[1]s\n</table>",
-	NeedParse: true,
-}
-
-var tablerow = &Block{
-	Name:      "tablerow",
-	Regex:     regexp.MustCompile(`\s*\|(.+?)\|*$`),
-	Label:     "<tr>\n%[1]s\n</tr>",
-	NeedParse: true,
-}
-
-var tablecell = &Block{
-	Name:      "tablecell",
-	Regex:     regexp.MustCompile(`\s*\|(.+?)\|*$`),
-	Label:     "<td>%[1]s</td>",
-	NeedParse: true,
-}
-
-var blocks = []*Block{
+var blocks = []BlockType{
 	heading,
 	table,
 	unorderlist,
@@ -432,20 +323,22 @@ var blocks = []*Block{
 	quote,
 }
 
-// OrgToHTML ..
-func OrgToHTML(text string) string {
-	var buffer bytes.Buffer
+// Open ..
+func (s *Center) Open(firstline string) BlockType {
+	return &Center{Block: *s.open(firstline)}
+}
 
-	for _, str := range strings.Split(text, "\n") {
-		org.Append(str)
-	}
-	for _, str := range org.Children {
-		s := str.String()
-		fmt.Println(s)
-		buffer.WriteString(s)
-	}
-	// for _, i := range org.Debug() {
-	//	fmt.Println(i)
-	// }
-	return buffer.String()
+// Open ..
+func (s *Verse) Open(firstline string) BlockType {
+	return &Verse{Block: *s.open(firstline)}
+}
+
+// Open ..
+func (s *Export) Open(firstline string) BlockType {
+	return &Export{Block: *s.open(firstline)}
+}
+
+// Open ..
+func (s *Quote) Open(firstline string) BlockType {
+	return &Quote{Block: *s.open(firstline)}
 }
