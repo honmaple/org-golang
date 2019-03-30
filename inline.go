@@ -1,4 +1,4 @@
-package main
+package org
 
 import (
 	"fmt"
@@ -16,11 +16,13 @@ type Inline struct {
 // InlineText ..
 type InlineText struct {
 	Text      string
-	Escape    bool
 	NeedParse bool
+	Customize map[string]*InlineBlock
 }
 
-var inlineRegex = `(%[1]s(.*?)%[1]s)`
+// _inline_regex = r'((?:^|\s|[\u4e00-\u9fa5])(?![/\\])){0}([^\s]*?|[^\s]+.*?[^\s]+)(?<![/\\]|\s){0}(\B|[\u4e00-\u9fa5])'
+
+var inlineRegex = `(?:^|\s|[^a-zA-Z<\\\*])(%[1]s([^\s].*?[^\s])%[1]s)\B`
 
 var comment = &Inline{
 	Name:  "comment",
@@ -35,8 +37,9 @@ var newline = &Inline{
 var italic = &Inline{
 	Name:  "italic",
 	Label: "<i>%[1]s</i>",
-	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `\*\*`)),
+	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `(?:\*\*|\/)`)),
 }
+
 var bold = &Inline{
 	Name:  "bold",
 	Label: "<b>%[1]s</b>",
@@ -57,31 +60,34 @@ var delete = &Inline{
 	Label: "<del>%[1]s</del>",
 	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `\+`)),
 }
+
 var verbatim = &Inline{
 	Name:  "verbatim",
 	Label: "<code>%[1]s</code>",
-	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `~`)),
+	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, "[`~]")),
 }
 
 var fn = &Inline{
 	Name:  "fn",
-	Label: "<code>%[1]s</code>",
-	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `\=`)),
+	Label: "<sup><a id=\"fnr:%[1]s\" class=\"footref\" href=\"#fn.%[1]s\">%[1]s</a></sup>",
+	Regex: regexp.MustCompile(`\[fn:([\w-]+?)(:(.*?))?\]`),
 }
 var link = &Inline{
 	Name:  "link",
-	Label: "<code>%[1]s</code>",
-	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `\=`)),
+	Label: "<a href=\"%[2]s\">%[1]s</a>",
+	Regex: regexp.MustCompile(`\[\[(.+?)\](?:\[(.+?)\])?\]`),
 }
 var image = &Inline{
 	Name:  "image",
-	Label: "<code>%[1]s</code>",
-	Regex: regexp.MustCompile(fmt.Sprintf(inlineRegex, `\=`)),
+	Label: "<img src=\"%[1]s\"/>",
+	Regex: regexp.MustCompile(`\[\[(.+?)\]\]`),
 }
 
 var inlines = []*Inline{
 	comment,
 	newline,
+	link,
+	image,
 	italic,
 	bold,
 	underlined,
@@ -92,12 +98,15 @@ var inlines = []*Inline{
 
 // HTML ..
 func (s *Inline) HTML(text string) string {
+	if s.Name == "link" {
+		return s.Regex.ReplaceAllString(text, fmt.Sprintf(s.Label, "$1", "$2"))
+	}
 	return s.Regex.ReplaceAllString(text, fmt.Sprintf(s.Label, "$2"))
 }
 
 // Match ..
 func (s *Inline) Match(text string) bool {
-	return s.Regex.FindString(text) != ""
+	return s.Regex.MatchString(text)
 }
 
 // HTML ..
@@ -105,7 +114,7 @@ func (s *InlineText) HTML() string {
 	if !s.NeedParse {
 		return s.Text
 	}
-	return InlineHTML(s.Text, s.Escape)
+	return InlineHTML(s.Text, options.Escape)
 }
 
 // InlineHTML ..
@@ -113,11 +122,6 @@ func InlineHTML(text string, escape bool) string {
 	if escape {
 		text = strings.ReplaceAll(text, "<", "&lt;")
 		text = strings.ReplaceAll(text, ">", "&gt;")
-		// if quote {
-		//	text = strings.ReplaceAll(text, `"`, "&quot;")
-		//	text = strings.ReplaceAll(text, "'", "&#39;")
-		// }
-		// return text
 	}
 	for _, inline := range inlines {
 		if inline.Match(text) {

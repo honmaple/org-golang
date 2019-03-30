@@ -1,4 +1,4 @@
-package main
+package org
 
 import (
 	"fmt"
@@ -8,6 +8,11 @@ import (
 
 // Table ..
 type Table struct {
+	Block
+}
+
+// TableHeader ..
+type TableHeader struct {
 	Block
 }
 
@@ -28,6 +33,15 @@ var table = &Table{
 		Name:      "table",
 		Regex:     regexp.MustCompile(`\s*\|(.+?)\|*$`),
 		Label:     "<table>\n%[1]s\n</table>",
+		NeedParse: true,
+	},
+}
+
+var tableheader = &TableHeader{
+	Block: Block{
+		Name:      "tableheader",
+		Regex:     regexp.MustCompile(`\s*\|(.+?)\|*$`),
+		Label:     "<th>%[1]s</th>",
 		NeedParse: true,
 	},
 }
@@ -55,12 +69,16 @@ func (s *TableCell) HTML() string {
 	inlinetext := &InlineText{
 		Text:      s.FirstLine,
 		NeedParse: s.NeedParse,
-		Escape:    s.Escape,
 	}
 	if s.Label == "" {
 		return inlinetext.HTML()
 	}
 	return fmt.Sprintf(s.Label, inlinetext.HTML())
+}
+
+// Open ..
+func (s *TableHeader) Open(firstline string) BlockType {
+	return &TableHeader{Block: *s.open(firstline)}
 }
 
 // Open ..
@@ -91,6 +109,14 @@ func (s *Table) Open(firstline string) BlockType {
 
 // Append ..
 func (s *Table) Append(text string) {
+	if tablesep.MatchString(text) {
+		for _, child := range s.Children {
+			for _, cell := range child.(*TableRow).Children {
+				cell.SetLabel(tableheader.Label)
+			}
+		}
+		return
+	}
 	s.AddChild(tablerow.Open(text))
 }
 
@@ -100,5 +126,4 @@ func (s *Table) MatchEnd(text string) bool {
 		return false
 	}
 	return true
-	return tablesep.MatchString(text)
 }

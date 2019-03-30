@@ -1,4 +1,4 @@
-package main
+package org
 
 import (
 	"fmt"
@@ -35,10 +35,13 @@ type Block struct {
 	Children  []BlockType
 	Current   BlockType
 	NeedParse bool
-	Escape    bool
 	Regex     *regexp.Regexp
 	Label     string
-	Attr      map[string]string
+}
+
+// Org ..
+type Org struct {
+	Block
 }
 
 // Center ..
@@ -256,9 +259,11 @@ var regexs = map[string]*regexp.Regexp{
 	"quote":   regexp.MustCompile(`\s*#\+(END_QUOTE|end_quote)\s*$`),
 }
 
-var org = &Block{
-	Name:      "org",
-	NeedParse: true,
+var org = Org{
+	Block: Block{
+		Name:      "org",
+		NeedParse: true,
+	},
 }
 
 var hr = &Block{
@@ -278,7 +283,7 @@ var center = &Center{
 	Block: Block{
 		Name:      "center",
 		Regex:     regexp.MustCompile(`\s*#\+(BEGIN_CENTER|begin_center)$`),
-		Label:     "<p class=\"org-center\">\n%[1]s\n</p>",
+		Label:     "<p style=\"text-align:center;\">\n%[1]s\n</p>",
 		NeedParse: true,
 	},
 }
@@ -296,7 +301,7 @@ var verse = &Verse{
 	Block: Block{
 		Name:      "verse",
 		Regex:     regexp.MustCompile(`\s*#\+(BEGIN_VERSE|begin_verse)$`),
-		Label:     "<p class=\"org-verse\">\n%[1]s\n</p>",
+		Label:     "<p>\n%[1]s\n</p>",
 		NeedParse: true,
 	},
 }
@@ -321,6 +326,11 @@ var blocks = []BlockType{
 	center,
 	verse,
 	quote,
+}
+
+// Open ..
+func (s *Org) Open(firstline string) BlockType {
+	return &Org{Block: *s.open(firstline)}
 }
 
 // Open ..

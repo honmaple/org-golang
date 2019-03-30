@@ -1,4 +1,4 @@
-package main
+package org
 
 import (
 	"fmt"
@@ -35,7 +35,6 @@ func (s *InlineBlock) HTML() string {
 	inlinetext := &InlineText{
 		Text:      s.FirstLine,
 		NeedParse: s.NeedParse,
-		Escape:    s.Escape,
 	}
 	if s.Label == "" {
 		return inlinetext.HTML()
