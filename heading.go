@@ -62,7 +62,7 @@ func (s *Heading) MatchEnd(text string) bool {
 func (s *Heading) HTML() string {
 	strs := make([]string, 0)
 
-	strs = append(strs, fmt.Sprintf(s.Label, s.Level, s.Title, s.ID))
+	strs = append(strs, fmt.Sprintf(s.Label, s.Level + options.Offset, s.Title, s.ID))
 
 	for _, child := range s.Children {
 		strs = append(strs, child.HTML())

@@ -18,6 +18,11 @@ var options = &Options{
 	Offset: 0,
 }
 
+// SetOptions ..
+func SetOptions(conf *Options) {
+	options = conf
+}
+
 // ToHTML ..
 func ToHTML(text string, conf *Options) string {
 	var buffer bytes.Buffer
@@ -30,6 +35,7 @@ func ToHTML(text string, conf *Options) string {
 		org.Append(str)
 	}
 	if options.Toc {
+		options.Escape = false
 		buffer.WriteString(toc.HTML())
 	}
 	for _, str := range org.Children {

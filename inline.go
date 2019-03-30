@@ -22,7 +22,7 @@ type InlineText struct {
 
 // _inline_regex = r'((?:^|\s|[\u4e00-\u9fa5])(?![/\\])){0}([^\s]*?|[^\s]+.*?[^\s]+)(?<![/\\]|\s){0}(\B|[\u4e00-\u9fa5])'
 
-var inlineRegex = `(?:^|\s|[^a-zA-Z<\\\*])(%[1]s([^\s].*?[^\s])%[1]s)\B`
+var inlineRegex = `(?:^|\s|[^a-zA-Z0-9<\\\*])(%[1]s([^\s].*?[^\s])%[1]s)\B`
 
 var comment = &Inline{
 	Name:  "comment",

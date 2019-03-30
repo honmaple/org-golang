@@ -1,0 +1,50 @@
+* org-golang
+  convert org-mode to html
+  
+** How to use?
+   #+begin_src bash
+     go get -u github.com/honmaple/org-golang
+   #+end_src
+
+   #+begin_src go
+     package main
+
+     import (
+         "fmt"
+         org "github.com/honmaple/org-golang"
+     )
+
+     func main() {
+         text := `
+     *heading
+         /italic/ italic/ /italic\/ \/italic\/ \/italic/
+         =code= code= =code\= \=code\= \=code=
+         ~code1~ code1~ ~code1\~ \~code1\~ \~code~
+         #+begin_example
+         s *sss* ss
+         exam
+         #+end_example
+
+         - list1
+         sssss
+         - list4
+             cccc
+         - list2
+         - title3
+         vvvvc
+
+     ** heading2
+
+         | kk  | kv   |
+         |-----+------|
+         | sss | cccc |
+         |     | cccc |
+         | ddd | vvv  |`
+
+         fmt.Println(org.ToHTML(text, &org.Options{
+             Toc:    true,
+             Escape: true,
+             Offset: 1,
+         }))
+     }
+   #+end_src
