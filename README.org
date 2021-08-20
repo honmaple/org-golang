@@ -1,6 +1,6 @@
 * org-golang
   convert org-mode to html
-  
+
 ** How to use?
    #+begin_src bash
      go get -u github.com/honmaple/org-golang
@@ -11,12 +11,14 @@
 
      import (
          "fmt"
-         org "github.com/honmaple/org-golang"
+
+         "github.com/honmaple/org-golang/parser"
+         "github.com/honmaple/org-golang/render"
      )
 
      func main() {
          text := `
-     *heading
+     * heading
          /italic/ italic/ /italic\/ \/italic\/ \/italic/
          =code= code= =code\= \=code\= \=code=
          ~code1~ code1~ ~code1\~ \~code1\~ \~code~
@@ -41,10 +43,14 @@
          |     | cccc |
          | ddd | vvv  |`
 
-         fmt.Println(org.ToHTML(text, &org.Options{
-             Toc:    true,
-             Escape: true,
-             Offset: 1,
-         }))
+         r := render.HTMLRender{
+             Document: parser.Parse(text),
+         }
+         fmt.Println(r.String())
+
+         r1 := render.DebugRender{
+             Document: parser.Parse(text),
+         }
+         fmt.Println(r1.String())
      }
    #+end_src
