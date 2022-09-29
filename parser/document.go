@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"bufio"
+	"io"
 	"strings"
 	"sync"
 )
@@ -37,46 +39,47 @@ func lineIndent(line string) int {
 
 type Document struct {
 	Children        []Node
-	Sections        []*Section
+	Sections        *Section
 	Keywords        map[string]string
 	Properties      map[string]string
 	TimestampFormat string
 }
 
-func (s *Document) Get(k string) string {
-	return s.Keywords[k]
+func (d *Document) Get(k string) string {
+	return d.Keywords[k]
 }
 
-func (s *Document) Set(k, v string) {
-	s.Keywords[k] = v
+func (d *Document) Set(k, v string) {
+	d.Keywords[k] = v
 }
 
-func (s *Document) addHeadline(node *Headline) {
-	if len(s.Sections) == 0 {
-		s.Sections = append(s.Sections, &Section{node, make([]*Section, 0)})
-		return
-	}
+func ParseFromLines(lines []string) *Document {
+	p := parserPool.Get().(*parser)
+	defer parserPool.Put(p)
 
-	last := s.Sections[len(s.Sections)-1]
-	if node.Stars >= last.Stars {
-		s.Sections = append(s.Sections, &Section{node, make([]*Section, 0)})
-	} else {
-		last.Children = append(last.Children, &Section{node, make([]*Section, 0)})
-	}
-}
-
-func Parse(content string) *Document {
 	d := &Document{
-		Sections: make([]*Section, 0),
+		Sections: &Section{},
 		Keywords: map[string]string{
 			"TODO": todoKeywords,
 		},
 		TimestampFormat: timestampFormat,
 	}
-	p := parserPool.Get().(*parser)
-	d.Children = p.ParseAll(d, strings.Split(content, "\n"), false)
-	parserPool.Put(p)
+	d.Children = p.ParseAll(d, lines, false)
 	return d
+}
+
+func ParseFromReader(reader io.Reader) *Document {
+	scanner := bufio.NewScanner(reader)
+
+	lines := make([]string, 0)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return ParseFromLines(lines)
+}
+
+func Parse(content string) *Document {
+	return ParseFromLines(strings.Split(content, "\n"))
 }
 
 type parser struct{}

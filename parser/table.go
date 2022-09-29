@@ -21,11 +21,11 @@ var (
 type Table struct {
 	numeric  bool
 	Aligns   []string
-	Children []*TableRow
+	Children []Node
 }
 
 type TableRow struct {
-	Children  []*TableColumn
+	Children  []Node
 	Separator bool
 }
 
@@ -76,7 +76,7 @@ func (s *parser) TableRow(d *Document, lines []string) (*TableRow, int) {
 	}
 
 	aligns := make([]string, 0)
-	children := make([]*TableColumn, 0)
+	children := make([]Node, 0)
 	for _, text := range strings.FieldsFunc(match[2], func(r rune) bool { return r == '|' }) {
 		text = strings.TrimSpace(text)
 		if m := tableAlignRegexp.FindStringSubmatch(text); m != nil {
@@ -91,7 +91,7 @@ func (s *parser) TableRow(d *Document, lines []string) (*TableRow, int) {
 }
 
 func (s *parser) Table(d *Document, lines []string) (*Table, int) {
-	rows := make([]*TableRow, 0)
+	rows := make([]Node, 0)
 
 	idx, end := 0, len(lines)
 	for idx < end {

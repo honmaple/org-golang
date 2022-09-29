@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
@@ -15,10 +16,40 @@ var (
 
 type Section struct {
 	*Headline
+	idx      string
+	last     *Section
+	parent   *Section
 	Children []*Section
 }
 
+func (s *Section) add(node *Headline) string {
+	var parent *Section
+
+	if s.last == nil {
+		parent = s
+	} else if node.Stars > s.last.Stars {
+		parent = s.last
+	} else if node.Stars == s.last.Stars {
+		parent = s.last.parent
+	} else {
+		parent = s.last.parent
+		for parent.Headline != nil && node.Stars <= parent.Stars {
+			parent = parent.parent
+		}
+	}
+	sec := &Section{Headline: node, parent: parent}
+	parent.Children = append(parent.Children, sec)
+	if parent.Headline == nil {
+		sec.idx = fmt.Sprintf("%d", len(parent.Children))
+	} else {
+		sec.idx = fmt.Sprintf("%s.%d", parent.idx, len(parent.Children))
+	}
+	s.last = sec
+	return sec.idx
+}
+
 type Headline struct {
+	Index      string
 	Stars      int
 	Keyword    string
 	Priority   string
@@ -33,10 +64,12 @@ func (Headline) Name() string {
 }
 
 func (s *Headline) Id() string {
-	if id := s.Properties.Get("CUSTOM_ID"); id != "" {
-		return id
+	if s.Properties != nil {
+		if id := s.Properties.Get("CUSTOM_ID"); id != "" {
+			return id
+		}
 	}
-	return HeadlineName
+	return fmt.Sprintf("headline-%s", s.Index)
 }
 
 func (s *parser) Headline(d *Document, lines []string) (*Headline, int) {
@@ -60,6 +93,7 @@ func (s *parser) Headline(d *Document, lines []string) (*Headline, int) {
 		Stars:   len(match[1]),
 		Keyword: keyword,
 	}
+	b.Index = d.Sections.add(b)
 
 	tmatch := headlineTitleRegexp.FindStringSubmatch(title)
 	b.Priority = tmatch[1]
@@ -80,6 +114,5 @@ func (s *parser) Headline(d *Document, lines []string) (*Headline, int) {
 	}
 	b.Children = children
 
-	d.addHeadline(b)
 	return b, idx
 }

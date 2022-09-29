@@ -43,12 +43,12 @@
          |     | cccc |
          | ddd | vvv  |`
 
-         r := render.HTMLRender{
+         r := render.HTML{
              Document: parser.Parse(text),
          }
          fmt.Println(r.String())
 
-         r1 := render.DebugRender{
+         r1 := render.Debug{
              Document: parser.Parse(text),
          }
          fmt.Println(r1.String())

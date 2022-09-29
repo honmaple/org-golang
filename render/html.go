@@ -7,28 +7,7 @@ import (
 	"github.com/honmaple/org-golang/parser"
 )
 
-type Render interface {
-	InlineText(*parser.InlineText) string
-	InlineTimestamp(*parser.InlineTimestamp) string
-	InlineFootnote(*parser.InlineFootnote) string
-	InlinePercent(*parser.InlinePercent) string
-	InlineEmphasis(*parser.InlineEmphasis) string
-	InlineLineBreak(*parser.InlineLineBreak) string
-	InlineLink(*parser.InlineLink) string
-	Headline(*parser.Headline, int) string
-	Keyword(*parser.Keyword, int) string
-	Blankline(*parser.Blankline, int) string
-	List(*parser.List, int) string
-	ListItem(*parser.ListItem, int) string
-	Table(*parser.Table, int) string
-	Block(*parser.Block, int) string
-	BlockResult(*parser.BlockResult, int) string
-	Drawer(*parser.Drawer, int) string
-	Hr(*parser.Hr, int) string
-	Paragraph(*parser.Paragragh, int) string
-}
-
-type HTMLRender struct {
+type HTML struct {
 	Document  *parser.Document
 	Toc       bool
 	Offset    int
@@ -71,27 +50,31 @@ const (
 	paragraghElement = "<p>\n%[1]s\n</p>"
 )
 
-func (s HTMLRender) InlineText(n *parser.InlineText) string {
+func (s HTML) render(children []parser.Node, l int, sep string) string {
+	return concat(s, children, sep, l)
+}
+
+func (s HTML) InlineText(n *parser.InlineText) string {
 	return n.Content
 }
 
-func (s HTMLRender) InlineLineBreak(n *parser.InlineLineBreak) string {
+func (s HTML) InlineLineBreak(n *parser.InlineLineBreak) string {
 	return strings.Repeat("\n", n.Count)
 }
 
-func (s HTMLRender) InlineFootnote(n *parser.InlineFootnote) string {
+func (s HTML) InlineFootnote(n *parser.InlineFootnote) string {
 	return ""
 }
 
-func (s HTMLRender) InlineTimestamp(n *parser.InlineTimestamp) string {
+func (s HTML) InlineTimestamp(n *parser.InlineTimestamp) string {
 	return ""
 }
 
-func (s HTMLRender) InlinePercent(n *parser.InlinePercent) string {
+func (s HTML) InlinePercent(n *parser.InlinePercent) string {
 	return fmt.Sprintf("<code>[%s]</code>", n.Num)
 }
 
-func (s HTMLRender) InlineLink(n *parser.InlineLink) string {
+func (s HTML) InlineLink(n *parser.InlineLink) string {
 	if n.IsImage() {
 		return fmt.Sprintf("<img src=\"%s\"/>", n.URL)
 	}
@@ -104,7 +87,7 @@ func (s HTMLRender) InlineLink(n *parser.InlineLink) string {
 	return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.Desc)
 }
 
-func (s HTMLRender) InlineEmphasis(n *parser.InlineEmphasis) string {
+func (s HTML) InlineEmphasis(n *parser.InlineEmphasis) string {
 	text := s.render(n.Children, 0, "")
 	switch n.Marker {
 	case "=", "~", "`":
@@ -121,10 +104,9 @@ func (s HTMLRender) InlineEmphasis(n *parser.InlineEmphasis) string {
 	return ""
 }
 
-func (s HTMLRender) Headline(n *parser.Headline, l int) string {
+func (s HTML) headline(n *parser.Headline, l int) string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("<h%[1]d>", n.Stars))
 	if n.Keyword != "" {
 		b.WriteString(fmt.Sprintf(headlineKeywordElement, n.Keyword))
 	}
@@ -135,6 +117,14 @@ func (s HTMLRender) Headline(n *parser.Headline, l int) string {
 	for _, tag := range n.Tags {
 		b.WriteString(fmt.Sprintf(headlineTagElement, tag))
 	}
+	return b.String()
+}
+
+func (s HTML) Headline(n *parser.Headline, l int) string {
+	var b strings.Builder
+
+	b.WriteString(fmt.Sprintf("<h%[1]d>", n.Stars+s.Offset))
+	b.WriteString(s.headline(n, l))
 	b.WriteString(fmt.Sprintf("</h%[1]d>", n.Stars))
 	if len(n.Children) > 0 {
 		b.WriteString("\n")
@@ -143,11 +133,11 @@ func (s HTMLRender) Headline(n *parser.Headline, l int) string {
 	return b.String()
 }
 
-func (s HTMLRender) Keyword(n *parser.Keyword, l int) string {
+func (s HTML) Keyword(n *parser.Keyword, l int) string {
 	return ""
 }
 
-func (s HTMLRender) ListItem(n *parser.ListItem, l int) string {
+func (s HTML) ListItem(n *parser.ListItem, l int) string {
 	content := s.render(n.Children, l, "\n")
 	if n.Status != "" {
 		content = fmt.Sprintf("%[1]s %[2]s",
@@ -158,7 +148,7 @@ func (s HTMLRender) ListItem(n *parser.ListItem, l int) string {
 	return fmt.Sprintf(listitemElement, content)
 }
 
-func (s HTMLRender) List(n *parser.List, l int) string {
+func (s HTML) List(n *parser.List, l int) string {
 	content := s.render(n.Children, l, "\n")
 	switch n.Type {
 	case parser.OrderlistName:
@@ -172,34 +162,25 @@ func (s HTMLRender) List(n *parser.List, l int) string {
 	}
 }
 
-func (s HTMLRender) TableColumn(n *parser.TableColumn, l int) string {
+func (s HTML) TableColumn(n *parser.TableColumn, l int) string {
 	if n.IsHeader {
 		return fmt.Sprintf(tableHeaderElement, "", s.render(n.Children, l, ""))
 	}
 	return fmt.Sprintf(tableColumnElement, "", s.render(n.Children, l, ""))
 }
 
-func (s HTMLRender) TableRow(n *parser.TableRow, l int) string {
+func (s HTML) TableRow(n *parser.TableRow, l int) string {
 	if n.Separator {
 		return ""
 	}
-
-	var b strings.Builder
-	for _, child := range n.Children {
-		b.WriteString(s.TableColumn(child, l))
-	}
-	return fmt.Sprintf(tableRowElement, b.String())
+	return fmt.Sprintf(tableRowElement, s.render(n.Children, l, "\n"))
 }
 
-func (s HTMLRender) Table(n *parser.Table, l int) string {
-	var b strings.Builder
-	for _, child := range n.Children {
-		b.WriteString(s.TableRow(child, l))
-	}
-	return fmt.Sprintf(tableElement, b.String())
+func (s HTML) Table(n *parser.Table, l int) string {
+	return fmt.Sprintf(tableElement, s.render(n.Children, l, "\n"))
 }
 
-func (s HTMLRender) Block(n *parser.Block, l int) string {
+func (s HTML) Block(n *parser.Block, l int) string {
 	switch n.Type {
 	case "SRC":
 		if s.Highlight == nil {
@@ -228,119 +209,46 @@ func (s HTMLRender) Block(n *parser.Block, l int) string {
 	return s.render(n.Children, l, "\n")
 }
 
-func (s HTMLRender) BlockResult(n *parser.BlockResult, l int) string {
+func (s HTML) BlockResult(n *parser.BlockResult, l int) string {
 	return s.render(n.Children, l, "\n")
 }
 
-func (s HTMLRender) Drawer(n *parser.Drawer, l int) string {
+func (s HTML) Drawer(n *parser.Drawer, l int) string {
 	return s.render(n.Children, l, "\n")
 }
 
-func (s HTMLRender) Blankline(n *parser.Blankline, l int) string {
+func (s HTML) Blankline(n *parser.Blankline, l int) string {
 	return ""
 }
 
-func (s HTMLRender) Hr(n *parser.Hr, l int) string {
+func (s HTML) Hr(n *parser.Hr, l int) string {
 	return "<hr/>"
 }
 
-func (s HTMLRender) Paragraph(n *parser.Paragragh, l int) string {
+func (s HTML) Paragraph(n *parser.Paragragh, l int) string {
 	return fmt.Sprintf(paragraghElement, s.render(n.Children, l, ""))
 }
 
-func (s HTMLRender) Section(n *parser.Section) string {
-	return ""
+func (s HTML) Section(sections []*parser.Section) string {
+	var b strings.Builder
+
+	b.WriteString("<ul>\n")
+	for _, section := range sections {
+		b.WriteString(fmt.Sprintf(`<li><a href="%s">%s</a>`, section.Id(), s.headline(section.Headline, 0)))
+		if len(section.Children) > 0 {
+			b.WriteString("\n")
+			b.WriteString(s.Section(section.Children))
+		}
+		b.WriteString("</li>\n")
+	}
+	b.WriteString("</ul>")
+	return b.String()
 }
 
-func (s HTMLRender) String() string {
+func (s HTML) String() string {
 	content := s.render(s.Document.Children, 0, "\n")
-	if !s.Toc || s.Document.Get("toc") == "nil" {
+	if !s.Toc || s.Document.Get("toc") == "nil" || len(s.Document.Sections.Children) == 0 {
 		return content
 	}
-	return content
-}
-
-func (s HTMLRender) render(children []parser.Node, l int, sep string) string {
-	return concat(s, children, sep, l)
-}
-
-func concat(r Render, children []parser.Node, sep string, l int) string {
-	cs := make([]string, len(children))
-	for i, child := range children {
-		cs[i] = render(r, child, l)
-	}
-	return strings.Join(cs, sep)
-}
-
-func render(r Render, n parser.Node, l int) string {
-	switch node := n.(type) {
-	case *parser.InlineText:
-		return r.InlineText(node)
-	case *parser.InlineLineBreak:
-		return r.InlineLineBreak(node)
-	case *parser.InlineLink:
-		return r.InlineLink(node)
-	case *parser.InlinePercent:
-		return r.InlinePercent(node)
-	case *parser.InlineEmphasis:
-		return r.InlineEmphasis(node)
-	case *parser.Headline:
-		return r.Headline(node, l)
-	case *parser.Blankline:
-		return r.Blankline(node, l)
-	case *parser.Keyword:
-		return r.Keyword(node, l)
-	case *parser.Block:
-		return r.Block(node, l)
-	case *parser.BlockResult:
-		return r.BlockResult(node, l)
-	case *parser.Table:
-		return r.Table(node, l)
-	case *parser.List:
-		return r.List(node, l)
-	case *parser.ListItem:
-		return r.ListItem(node, l)
-	case *parser.Drawer:
-		return r.Drawer(node, l)
-	case *parser.Hr:
-		return r.Hr(node, l)
-	case *parser.Paragragh:
-		return r.Paragraph(node, l)
-	default:
-		return ""
-	}
-	// switch n.Name() {
-	// case parser.InlineTextName:
-	//	return r.InlineText(n.(*parser.InlineText))
-	// case parser.InlineLineBreakName:
-	//	return r.InlineLineBreak(n.(*parser.InlineLineBreak))
-	// case parser.HrName:
-	//	return r.Hr(n.(*parser.Hr))
-	// case parser.InlineLinkName:
-	//	return r.InlineLink(n.(*parser.InlineLink))
-	// case parser.InlinePercentName:
-	//	return r.InlinePercent(n.(*parser.InlinePercent))
-	// case parser.InlineEmphasisName:
-	//	return r.InlineEmphasis(n.(*parser.InlineEmphasis))
-	// case parser.HeadlineName:
-	//	return r.Headline(n.(*parser.Headline))
-	// case parser.KeywordName:
-	//	return r.Keyword(n.(*parser.Keyword))
-	// case parser.BlockName:
-	//	return r.Block(n.(*parser.Block))
-	// case parser.BlockResultName:
-	//	return r.BlockResult(n.(*parser.BlockResult))
-	// case parser.TableName:
-	//	return r.Table(n.(*parser.Table))
-	// case parser.ListName:
-	//	return r.List(n.(*parser.List))
-	// case parser.ListItemName:
-	//	return r.ListItem(n.(*parser.ListItem))
-	// case parser.DrawerName:
-	//	return r.Drawer(n.(*parser.Drawer))
-	// case parser.ParagraghName:
-	//	return r.Paragraph(n.(*parser.Paragragh))
-	// default:
-	//	return ""
-	// }
+	return s.Section(s.Document.Sections.Children) + content
 }
