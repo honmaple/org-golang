@@ -16,7 +16,7 @@ var (
 type WithKeyword struct {
 	Caption   map[string][]string
 	HTMLAttrs map[string][]string
-	Node      Node
+	Node   Node
 }
 
 type Keyword struct {

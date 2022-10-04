@@ -7,27 +7,30 @@ import (
 	"sync"
 )
 
-const (
-	todoKeywords    = "TODO | DONE | CANCELED"
-	timestampFormat = "2006-01-02 Mon 15:04"
-)
-
-var parserPool = sync.Pool{
+var pool = sync.Pool{
 	New: func() interface{} {
 		return new(parser)
 	},
 }
 
-type Node interface {
-	Name() string
-}
-
-type Parser interface {
-	Parse(*Document, []string) (Node, int)
-	ParseAll(*Document, []string, bool) []Node
-	ParseInline(*Document, string, int) (Node, int)
-	ParseAllInline(*Document, string, bool) []Node
-}
+type (
+	Node interface {
+		Name() string
+	}
+	Parser interface {
+		Parse(*Document, []string) (Node, int)
+		ParseAll(*Document, []string, bool) []Node
+		ParseInline(*Document, string, int) (Node, int)
+		ParseAllInline(*Document, string, bool) []Node
+	}
+	Document struct {
+		Children        []Node
+		Sections        *Section
+		Keywords        map[string]string
+		Properties      map[string]string
+		TimestampFormat string
+	}
+)
 
 func isBlankline(line string) bool {
 	return strings.TrimLeft(line, " ") == ""
@@ -35,14 +38,6 @@ func isBlankline(line string) bool {
 
 func lineIndent(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " "))
-}
-
-type Document struct {
-	Children        []Node
-	Sections        *Section
-	Keywords        map[string]string
-	Properties      map[string]string
-	TimestampFormat string
 }
 
 func (d *Document) Get(k string) string {
@@ -53,33 +48,24 @@ func (d *Document) Set(k, v string) {
 	d.Keywords[k] = v
 }
 
-func ParseFromLines(lines []string) *Document {
-	p := parserPool.Get().(*parser)
-	defer parserPool.Put(p)
-
-	d := &Document{
-		Sections: &Section{},
-		Keywords: map[string]string{
-			"TODO": todoKeywords,
-		},
-		TimestampFormat: timestampFormat,
-	}
-	d.Children = p.ParseAll(d, lines, false)
-	return d
+func ParseFromLines(d *Document, lines []string) []Node {
+	p := pool.Get().(*parser)
+	defer pool.Put(p)
+	return p.ParseAll(d, lines, false)
 }
 
-func ParseFromReader(reader io.Reader) *Document {
-	scanner := bufio.NewScanner(reader)
+func ParseFromText(d *Document, text string) []Node {
+	return ParseFromLines(d, strings.Split(text, "\n"))
+}
+
+func Parse(d *Document, r io.Reader) []Node {
+	scanner := bufio.NewScanner(r)
 
 	lines := make([]string, 0)
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
-	return ParseFromLines(lines)
-}
-
-func Parse(content string) *Document {
-	return ParseFromLines(strings.Split(content, "\n"))
+	return ParseFromLines(d, lines)
 }
 
 type parser struct{}

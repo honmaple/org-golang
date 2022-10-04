@@ -11,8 +11,9 @@
 
      import (
          "fmt"
+         "strings"
 
-         "github.com/honmaple/org-golang/parser"
+         "github.com/honmaple/org-golang"
          "github.com/honmaple/org-golang/render"
      )
 
@@ -43,14 +44,19 @@
          |     | cccc |
          | ddd | vvv  |`
 
-         r := render.HTML{
-             Document: parser.Parse(text),
-         }
-         fmt.Println(r.String())
+         r := strings.NewReader(text)
+         fmt.Println(org.HTML(r))
+         fmt.Println(org.Debug(r))
 
-         r1 := render.Debug{
-             Document: parser.Parse(text),
+         r1 := render.HTML{
+             Toc: true,
+             Document: org.New(r),
          }
          fmt.Println(r1.String())
+
+         r2 := render.Debug{
+             Document: org.New(r),
+         }
+         fmt.Println(r2.String())
      }
    #+end_src
