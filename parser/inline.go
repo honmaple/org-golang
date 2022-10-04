@@ -203,7 +203,7 @@ func (s *parser) InlineEmphasis(d *Document, line string, i int) (*InlineEmphasi
 	idx, end := i+1, len(line)
 	for idx < end {
 		if line[idx] == marker && idx != i+1 && isValidEndBorder(line, idx+1) {
-			b := &InlineEmphasis{Marker: string(marker), Children: s.ParseAllInline(d, line[i+1:idx], needparse)}
+			b := &InlineEmphasis{Marker: string(marker), Children: s.ParseAllInline(d, line[i+1:idx], !needparse)}
 			if isSpace(line, idx+1) {
 				return b, idx - i + 2
 			}

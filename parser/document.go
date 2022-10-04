@@ -119,7 +119,7 @@ func (s *parser) ParseAll(d *Document, lines []string, raw bool) []Node {
 		if next != nil {
 			nodes = append(nodes, next)
 		}
-		idx = idx + i + 1
+		idx = idx + i
 	}
 	return nodes
 }
