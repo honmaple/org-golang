@@ -65,7 +65,7 @@ func repeatString(text string, count int) []string {
 	return s
 }
 
-func (s *parser) TableRow(d *Document, lines []string) (*TableRow, int) {
+func (s *parser) ParseTableRow(d *Document, lines []string) (*TableRow, int) {
 	line := lines[0]
 	match := tableRowRegexp.FindStringSubmatch(line)
 	if match == nil {
@@ -90,12 +90,12 @@ func (s *parser) TableRow(d *Document, lines []string) (*TableRow, int) {
 	return &TableRow{Children: children}, 1
 }
 
-func (s *parser) Table(d *Document, lines []string) (*Table, int) {
+func (s *parser) ParseTable(d *Document, lines []string) (*Table, int) {
 	rows := make([]Node, 0)
 
 	idx, end := 0, len(lines)
 	for idx < end {
-		row, rowIdx := s.TableRow(d, lines[idx:])
+		row, rowIdx := s.ParseTableRow(d, lines[idx:])
 		if row == nil {
 			break
 		}

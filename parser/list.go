@@ -65,7 +65,7 @@ func (DescriptiveItem) Name() string {
 	return DescriptiveItemName
 }
 
-func (s *parser) ListItem(d *Document, lines []string) (*ListItem, int) {
+func (s *parser) ParseListItem(d *Document, lines []string) (*ListItem, int) {
 	match := listRegexp.FindStringSubmatch(lines[0])
 	if match == nil {
 		return nil, 0
@@ -102,8 +102,8 @@ func (s *parser) ListItem(d *Document, lines []string) (*ListItem, int) {
 	return b, idx
 }
 
-func (s *parser) List(d *Document, lines []string) (*List, int) {
-	item, idx := s.ListItem(d, lines)
+func (s *parser) ParseList(d *Document, lines []string) (*List, int) {
+	item, idx := s.ParseListItem(d, lines)
 	if item == nil {
 		return nil, 0
 	}
@@ -117,7 +117,7 @@ func (s *parser) List(d *Document, lines []string) (*List, int) {
 		if level := lineIndent(lines[idx]); level < item.Level {
 			break
 		}
-		item, ln := s.ListItem(d, lines[idx:])
+		item, ln := s.ParseListItem(d, lines[idx:])
 		if item != nil && item.Level == item.Level && item.Kind() == l.Type {
 			l.Children = append(l.Children, item)
 			idx = idx + ln

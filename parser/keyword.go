@@ -37,7 +37,7 @@ func (s *Keyword) Get(string) (string, bool) {
 	return "", true
 }
 
-func (s *parser) Keyword(d *Document, lines []string) (*Keyword, int) {
+func (s *parser) ParseKeyword(d *Document, lines []string) (*Keyword, int) {
 	match := keywordRegexp.FindStringSubmatch(lines[0])
 	if match == nil {
 		return nil, 0

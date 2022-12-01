@@ -8,26 +8,27 @@ import (
 )
 
 type Renderer interface {
-	InlineText(*parser.InlineText) string
-	InlineTimestamp(*parser.InlineTimestamp) string
-	InlineFootnote(*parser.InlineFootnote) string
-	InlinePercent(*parser.InlinePercent) string
-	InlineEmphasis(*parser.InlineEmphasis) string
-	InlineLineBreak(*parser.InlineLineBreak) string
-	InlineLink(*parser.InlineLink) string
-	Headline(*parser.Headline, int) string
-	Keyword(*parser.Keyword, int) string
-	Blankline(*parser.Blankline, int) string
-	List(*parser.List, int) string
-	ListItem(*parser.ListItem, int) string
-	Table(*parser.Table, int) string
-	TableRow(*parser.TableRow, int) string
-	TableColumn(*parser.TableColumn, int) string
-	Block(*parser.Block, int) string
-	BlockResult(*parser.BlockResult, int) string
-	Drawer(*parser.Drawer, int) string
-	Hr(*parser.Hr, int) string
-	Paragraph(*parser.Paragragh, int) string
+	RenderText(*parser.InlineText) string
+	RenderTimestamp(*parser.InlineTimestamp) string
+	RenderFootnote(*parser.InlineFootnote) string
+	RenderPercent(*parser.InlinePercent) string
+	RenderEmphasis(*parser.InlineEmphasis) string
+	RenderLineBreak(*parser.InlineLineBreak) string
+	RenderLink(*parser.InlineLink) string
+	RenderSection(*parser.Section) string
+	RenderHeadline(*parser.Headline, int) string
+	RenderKeyword(*parser.Keyword, int) string
+	RenderBlankline(*parser.Blankline, int) string
+	RenderList(*parser.List, int) string
+	RenderListItem(*parser.ListItem, int) string
+	RenderTable(*parser.Table, int) string
+	RenderTableRow(*parser.TableRow, int) string
+	RenderTableColumn(*parser.TableColumn, int) string
+	RenderBlock(*parser.Block, int) string
+	RenderBlockResult(*parser.BlockResult, int) string
+	RenderDrawer(*parser.Drawer, int) string
+	RenderHr(*parser.Hr, int) string
+	RenderParagraph(*parser.Paragragh, int) string
 }
 
 func concat(r Renderer, children []parser.Node, sep string, l int) string {
@@ -41,78 +42,46 @@ func concat(r Renderer, children []parser.Node, sep string, l int) string {
 func render(r Renderer, n parser.Node, l int) string {
 	switch node := n.(type) {
 	case *parser.InlineText:
-		return r.InlineText(node)
+		return r.RenderText(node)
 	case *parser.InlineLineBreak:
-		return r.InlineLineBreak(node)
+		return r.RenderLineBreak(node)
 	case *parser.InlineLink:
-		return r.InlineLink(node)
+		return r.RenderLink(node)
 	case *parser.InlinePercent:
-		return r.InlinePercent(node)
+		return r.RenderPercent(node)
 	case *parser.InlineEmphasis:
-		return r.InlineEmphasis(node)
+		return r.RenderEmphasis(node)
+	case *parser.Section:
+		return r.RenderSection(node)
 	case *parser.Headline:
-		return r.Headline(node, l)
+		return r.RenderHeadline(node, l)
 	case *parser.Blankline:
-		return r.Blankline(node, l)
+		return r.RenderBlankline(node, l)
 	case *parser.Keyword:
-		return r.Keyword(node, l)
+		return r.RenderKeyword(node, l)
 	case *parser.Block:
-		return r.Block(node, l)
+		return r.RenderBlock(node, l)
 	case *parser.BlockResult:
-		return r.BlockResult(node, l)
+		return r.RenderBlockResult(node, l)
 	case *parser.Table:
-		return r.Table(node, l)
+		return r.RenderTable(node, l)
 	case *parser.TableRow:
-		return r.TableRow(node, l)
+		return r.RenderTableRow(node, l)
 	case *parser.TableColumn:
-		return r.TableColumn(node, l)
+		return r.RenderTableColumn(node, l)
 	case *parser.List:
-		return r.List(node, l)
+		return r.RenderList(node, l)
 	case *parser.ListItem:
-		return r.ListItem(node, l)
+		return r.RenderListItem(node, l)
 	case *parser.Drawer:
-		return r.Drawer(node, l)
+		return r.RenderDrawer(node, l)
 	case *parser.Hr:
-		return r.Hr(node, l)
+		return r.RenderHr(node, l)
 	case *parser.Paragragh:
-		return r.Paragraph(node, l)
+		return r.RenderParagraph(node, l)
 	default:
 		return ""
 	}
-	// switch n.Name() {
-	// case parser.InlineTextName:
-	//	return r.InlineText(n.(*parser.InlineText))
-	// case parser.InlineLineBreakName:
-	//	return r.InlineLineBreak(n.(*parser.InlineLineBreak))
-	// case parser.HrName:
-	//	return r.Hr(n.(*parser.Hr))
-	// case parser.InlineLinkName:
-	//	return r.InlineLink(n.(*parser.InlineLink))
-	// case parser.InlinePercentName:
-	//	return r.InlinePercent(n.(*parser.InlinePercent))
-	// case parser.InlineEmphasisName:
-	//	return r.InlineEmphasis(n.(*parser.InlineEmphasis))
-	// case parser.HeadlineName:
-	//	return r.Headline(n.(*parser.Headline))
-	// case parser.KeywordName:
-	//	return r.Keyword(n.(*parser.Keyword))
-	// case parser.BlockName:
-	//	return r.Block(n.(*parser.Block))
-	// case parser.BlockResultName:
-	//	return r.BlockResult(n.(*parser.BlockResult))
-	// case parser.TableName:
-	//	return r.Table(n.(*parser.Table))
-	// case parser.ListName:
-	//	return r.List(n.(*parser.List))
-	// case parser.ListItemName:
-	//	return r.ListItem(n.(*parser.ListItem))
-	// case parser.DrawerName:
-	//	return r.Drawer(n.(*parser.Drawer))
-	// case parser.ParagraghName:
-	//	return r.Paragraph(n.(*parser.Paragragh))
-	// default:
-	//	return ""
-	// }
 }
 
 type Debug struct {
@@ -126,19 +95,19 @@ func (s Debug) render(name string, children []parser.Node, sep string, l int) st
 	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), name)
 }
 
-func (s Debug) String() string {
-	return concat(s, s.Document.Children, "\n", 0)
+func (s Debug) RenderSection(n *parser.Section) string {
+	return n.Name()
 }
 
-func (s Debug) Headline(n *parser.Headline, l int) string {
+func (s Debug) RenderHeadline(n *parser.Headline, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) Keyword(n *parser.Keyword, l int) string {
+func (s Debug) RenderKeyword(n *parser.Keyword, l int) string {
 	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), n.Name())
 }
 
-func (s Debug) Block(n *parser.Block, l int) string {
+func (s Debug) RenderBlock(n *parser.Block, l int) string {
 	name := fmt.Sprintf("%s[%s]", n.Name(), n.Type)
 	switch n.Type {
 	case "SRC", "EXAMPLE", "VERSE":
@@ -154,72 +123,76 @@ func (s Debug) Block(n *parser.Block, l int) string {
 	}
 }
 
-func (s Debug) BlockResult(n *parser.BlockResult, l int) string {
+func (s Debug) RenderBlockResult(n *parser.BlockResult, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) Drawer(n *parser.Drawer, l int) string {
+func (s Debug) RenderDrawer(n *parser.Drawer, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) ListItem(n *parser.ListItem, l int) string {
+func (s Debug) RenderListItem(n *parser.ListItem, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) List(n *parser.List, l int) string {
+func (s Debug) RenderList(n *parser.List, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) TableColumn(n *parser.TableColumn, l int) string {
+func (s Debug) RenderTableColumn(n *parser.TableColumn, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) TableRow(n *parser.TableRow, l int) string {
+func (s Debug) RenderTableRow(n *parser.TableRow, l int) string {
 	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), n.Name())
 }
 
-func (s Debug) Table(n *parser.Table, l int) string {
+func (s Debug) RenderTable(n *parser.Table, l int) string {
 	return s.render(n.Name(), n.Children, "\n", l)
 }
 
-func (s Debug) Blankline(n *parser.Blankline, l int) string {
+func (s Debug) RenderBlankline(n *parser.Blankline, l int) string {
 	return fmt.Sprintf("%s%s[%d]", strings.Repeat(" ", l*2), n.Name(), n.Count)
 }
 
-func (s Debug) Paragraph(n *parser.Paragragh, l int) string {
+func (s Debug) RenderParagraph(n *parser.Paragragh, l int) string {
 	return fmt.Sprintf("%s%s\n%s%s",
 		strings.Repeat(" ", l*2), n.Name(),
 		strings.Repeat(" ", (l+1)*2), concat(s, n.Children, ",", l+1))
 }
 
-func (s Debug) Hr(n *parser.Hr, l int) string {
+func (s Debug) RenderHr(n *parser.Hr, l int) string {
 	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), n.Name())
 }
 
-func (s Debug) InlineText(n *parser.InlineText) string {
+func (s Debug) RenderText(n *parser.InlineText) string {
 	return n.Name()
 }
 
-func (s Debug) InlineLineBreak(n *parser.InlineLineBreak) string {
+func (s Debug) RenderLineBreak(n *parser.InlineLineBreak) string {
 	return n.Name()
 }
 
-func (s Debug) InlineFootnote(n *parser.InlineFootnote) string {
+func (s Debug) RenderFootnote(n *parser.InlineFootnote) string {
 	return n.Name()
 }
 
-func (s Debug) InlineTimestamp(n *parser.InlineTimestamp) string {
+func (s Debug) RenderTimestamp(n *parser.InlineTimestamp) string {
 	return n.Name()
 }
 
-func (s Debug) InlinePercent(n *parser.InlinePercent) string {
+func (s Debug) RenderPercent(n *parser.InlinePercent) string {
 	return n.Name()
 }
 
-func (s Debug) InlineLink(n *parser.InlineLink) string {
+func (s Debug) RenderLink(n *parser.InlineLink) string {
 	return n.Name()
 }
 
-func (s Debug) InlineEmphasis(n *parser.InlineEmphasis) string {
+func (s Debug) RenderEmphasis(n *parser.InlineEmphasis) string {
 	return n.Name()
+}
+
+func (s Debug) String() string {
+	return concat(s, s.Document.Children, "\n", 0)
 }

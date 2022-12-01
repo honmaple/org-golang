@@ -1,6 +1,9 @@
 * org-golang
   convert org-mode to html
 
+  [[https://orgmode.org/worg/org-syntax.html][https://img.shields.io/badge/org-syntax-brightgreen.svg]]
+  [[LICENSE][https://img.shields.io/badge/license-BSD-blue.svg]]
+
 ** How to use?
    #+begin_src bash
      go get -u github.com/honmaple/org-golang

@@ -36,7 +36,7 @@ func (BlockResult) Name() string {
 	return BlockResultName
 }
 
-func (s *parser) Block(d *Document, lines []string) (*Block, int) {
+func (s *parser) ParseBlock(d *Document, lines []string) (*Block, int) {
 	match := beginBlockRegexp.FindStringSubmatch(lines[0])
 	if match == nil {
 		return nil, 0
@@ -65,7 +65,7 @@ func (s *parser) Block(d *Document, lines []string) (*Block, int) {
 	return nil, 0
 }
 
-func (s *parser) BlockResult(d *Document, lines []string) (*BlockResult, int) {
+func (s *parser) ParseBlockResult(d *Document, lines []string) (*BlockResult, int) {
 	match := resultRegexp.FindStringSubmatch(lines[0])
 	if match == nil {
 		return nil, 0

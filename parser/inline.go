@@ -131,7 +131,7 @@ func isValidEndBorder(line string, index int) bool {
 	return unicode.IsSpace(r) || strings.ContainsRune(`-.,:!?;'")}[`, r)
 }
 
-func (s *parser) InlineLineBreak(d *Document, line string, i int) (*InlineLineBreak, int) {
+func (s *parser) ParseInlineLineBreak(d *Document, line string, i int) (*InlineLineBreak, int) {
 	idx, end := i, len(line)
 	for idx < end {
 		if line[idx] != '\n' {
@@ -145,7 +145,7 @@ func (s *parser) InlineLineBreak(d *Document, line string, i int) (*InlineLineBr
 	return nil, 0
 }
 
-func (s *parser) InlineTimestamp(d *Document, line string, i int) (*InlineTimestamp, int) {
+func (s *parser) ParseInlineTimestamp(d *Document, line string, i int) (*InlineTimestamp, int) {
 	if m := timestampRegexp.FindStringSubmatch(line[i:]); m != nil {
 		date, datetime, interval, isDate := m[1], m[3], strings.TrimSpace(m[4]), false
 		if datetime == "" {
@@ -160,7 +160,7 @@ func (s *parser) InlineTimestamp(d *Document, line string, i int) (*InlineTimest
 	return nil, 0
 }
 
-func (s *parser) InlineFootnote(d *Document, line string, i int) (*InlineFootnote, int) {
+func (s *parser) ParseInlineFootnote(d *Document, line string, i int) (*InlineFootnote, int) {
 	match := footnoteRegexp.FindStringSubmatch(line[i:])
 	if match == nil || len(match) == 0 {
 		return nil, 0
@@ -168,7 +168,7 @@ func (s *parser) InlineFootnote(d *Document, line string, i int) (*InlineFootnot
 	return &InlineFootnote{match[3]}, len(match[0])
 }
 
-func (s *parser) InlinePercent(d *Document, line string, i int) (*InlinePercent, int) {
+func (s *parser) ParseInlinePercent(d *Document, line string, i int) (*InlinePercent, int) {
 	match := percentRegexp.FindStringSubmatch(line[i:])
 	if match == nil || len(match) == 0 {
 		return nil, 0
@@ -176,7 +176,7 @@ func (s *parser) InlinePercent(d *Document, line string, i int) (*InlinePercent,
 	return &InlinePercent{match[1]}, len(match[0])
 }
 
-func (s *parser) InlineLink(d *Document, line string, i int) (*InlineLink, int) {
+func (s *parser) ParseInlineLink(d *Document, line string, i int) (*InlineLink, int) {
 	match := linkRegexp.FindStringSubmatch(line[i:])
 	if match == nil || len(match) == 0 {
 		return nil, 0
@@ -184,7 +184,7 @@ func (s *parser) InlineLink(d *Document, line string, i int) (*InlineLink, int) 
 	return &InlineLink{match[1], match[2]}, len(match[0])
 }
 
-func (s *parser) InlineEmphasis(d *Document, line string, i int) (*InlineEmphasis, int) {
+func (s *parser) ParseInlineEmphasis(d *Document, line string, i int) (*InlineEmphasis, int) {
 	marker := line[i]
 
 	needparse := true
@@ -214,7 +214,7 @@ func (s *parser) InlineEmphasis(d *Document, line string, i int) (*InlineEmphasi
 	return nil, 0
 }
 
-func (s *parser) InlineText(d *Document, line string, i int) (Node, Node, int) {
+func (s *parser) ParseInlineText(d *Document, line string, i int) (Node, Node, int) {
 	idx, end := i+1, len(line)
 	for idx < end {
 		if next, n := s.ParseInline(d, line, idx); next != nil {
@@ -226,22 +226,22 @@ func (s *parser) InlineText(d *Document, line string, i int) (Node, Node, int) {
 }
 
 func (s *parser) ParseInline(d *Document, line string, i int) (Node, int) {
-	if node, idx := s.InlineLineBreak(d, line, i); node != nil {
+	if node, idx := s.ParseInlineLineBreak(d, line, i); node != nil {
 		return node, idx
 	}
-	if node, idx := s.InlineEmphasis(d, line, i); node != nil {
+	if node, idx := s.ParseInlineEmphasis(d, line, i); node != nil {
 		return node, idx
 	}
-	if node, idx := s.InlineLink(d, line, i); node != nil {
+	if node, idx := s.ParseInlineLink(d, line, i); node != nil {
 		return node, idx
 	}
-	if node, idx := s.InlinePercent(d, line, i); node != nil {
+	if node, idx := s.ParseInlinePercent(d, line, i); node != nil {
 		return node, idx
 	}
-	if node, idx := s.InlineFootnote(d, line, i); node != nil {
+	if node, idx := s.ParseInlineFootnote(d, line, i); node != nil {
 		return node, idx
 	}
-	if node, idx := s.InlineTimestamp(d, line, i); node != nil {
+	if node, idx := s.ParseInlineTimestamp(d, line, i); node != nil {
 		return node, idx
 	}
 	return nil, i
@@ -258,7 +258,7 @@ func (s *parser) ParseAllInline(d *Document, line string, raw bool) []Node {
 			idx = idx + i
 			continue
 		}
-		node, next, i := s.InlineText(d, line, idx)
+		node, next, i := s.ParseInlineText(d, line, idx)
 		if node != nil {
 			nodes = append(nodes, node)
 		}

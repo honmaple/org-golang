@@ -40,7 +40,7 @@ func (Hr) Name() string {
 	return HrName
 }
 
-func (s *parser) Hr(d *Document, lines []string) (*Hr, int) {
+func (s *parser) ParseHr(d *Document, lines []string) (*Hr, int) {
 	match := hrRegexp.FindStringSubmatch(lines[0])
 	if match == nil || len(match) == 0 {
 		return nil, 0
@@ -48,7 +48,7 @@ func (s *parser) Hr(d *Document, lines []string) (*Hr, int) {
 	return &Hr{}, 1
 }
 
-func (s *parser) BlankLine(d *Document, lines []string) (*Blankline, int) {
+func (s *parser) ParseBlankLine(d *Document, lines []string) (*Blankline, int) {
 	idx, end := 0, len(lines)
 	for idx < end {
 		if !isBlankline(lines[idx]) {
@@ -62,7 +62,7 @@ func (s *parser) BlankLine(d *Document, lines []string) (*Blankline, int) {
 	return nil, 0
 }
 
-func (s *parser) Paragragh(d *Document, lines []string) (*Paragragh, Node, int) {
+func (s *parser) ParseParagragh(d *Document, lines []string) (*Paragragh, Node, int) {
 	idx, end := 1, len(lines)
 	for idx < end {
 		if next, n := s.Parse(d, lines[idx:]); next != nil {

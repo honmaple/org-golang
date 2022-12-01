@@ -72,7 +72,7 @@ func (s *Headline) Id() string {
 	return fmt.Sprintf("headline-%s", s.Index)
 }
 
-func (s *parser) Headline(d *Document, lines []string) (*Headline, int) {
+func (s *parser) ParseHeadline(d *Document, lines []string) (*Headline, int) {
 	match := headlineRegexp.FindStringSubmatch(lines[0])
 	if match == nil {
 		return nil, 0

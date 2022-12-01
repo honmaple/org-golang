@@ -71,31 +71,31 @@ func Parse(d *Document, r io.Reader) []Node {
 type parser struct{}
 
 func (s *parser) Parse(d *Document, lines []string) (Node, int) {
-	if node, idx := s.BlankLine(d, lines); node != nil {
+	if node, idx := s.ParseBlankLine(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.Headline(d, lines); node != nil {
+	if node, idx := s.ParseHeadline(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.Table(d, lines); node != nil {
+	if node, idx := s.ParseTable(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.List(d, lines); node != nil {
+	if node, idx := s.ParseList(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.Drawer(d, lines); node != nil {
+	if node, idx := s.ParseDrawer(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.Block(d, lines); node != nil {
+	if node, idx := s.ParseBlock(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.BlockResult(d, lines); node != nil {
+	if node, idx := s.ParseBlockResult(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.Keyword(d, lines); node != nil {
+	if node, idx := s.ParseKeyword(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.Hr(d, lines); node != nil {
+	if node, idx := s.ParseHr(d, lines); node != nil {
 		return node, idx
 	}
 	return nil, 0
@@ -112,7 +112,7 @@ func (s *parser) ParseAll(d *Document, lines []string, raw bool) []Node {
 			nodes = append(nodes, node)
 			continue
 		}
-		node, next, i := s.Paragragh(d, lines[idx:])
+		node, next, i := s.ParseParagragh(d, lines[idx:])
 		if node != nil {
 			nodes = append(nodes, node)
 		}

@@ -29,7 +29,7 @@ func (s *Drawer) Get(key string) string {
 	return s.Properties[key]
 }
 
-func (s *parser) Drawer(d *Document, lines []string) (*Drawer, int) {
+func (s *parser) ParseDrawer(d *Document, lines []string) (*Drawer, int) {
 	match := beginDrawerRegexp.FindStringSubmatch(lines[0])
 	if match == nil {
 		return nil, 0
