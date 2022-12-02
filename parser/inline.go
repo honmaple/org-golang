@@ -20,11 +20,13 @@ const (
 )
 
 var (
-	linkRegexp      = regexp.MustCompile(`^\[\[(.+?)\](?:\[(.+?)\])?\]`)
-	commentRegexp   = regexp.MustCompile(`^(\s*)#(.*)$`)
-	percentRegexp   = regexp.MustCompile(`^\[(\d+/\d+|\d+%)\]`)
-	footnoteRegexp  = regexp.MustCompile(`^\[fn:([\w-]*?)(:(.*?))?\]`)
-	timestampRegexp = regexp.MustCompile(`^<(\d{4}-\d{2}-\d{2})( [A-Za-z]+)?( \d{2}:\d{2})?( \+\d+[dwmy])?>`)
+	plainLinkRegexp   = regexp.MustCompile(`^(\w+)://`)
+	angleLinkRegexp   = regexp.MustCompile(`^<(\w+):(.+)>`)
+	regularLinkRegexp = regexp.MustCompile(`^\[\[(.+?)\](?:\[(.+?)\])?\]`)
+	commentRegexp     = regexp.MustCompile(`^(\s*)#(.*)$`)
+	percentRegexp     = regexp.MustCompile(`^\[(\d+/\d+|\d+%)\]`)
+	footnoteRegexp    = regexp.MustCompile(`^\[fn:([\w-]*?)(:(.*?))?\]`)
+	timestampRegexp   = regexp.MustCompile(`^<(\d{4}-\d{2}-\d{2})( [A-Za-z]+)?( \d{2}:\d{2})?( \+\d+[dwmy])?>`)
 )
 
 type InlineText struct {
@@ -36,8 +38,9 @@ func (InlineText) Name() string {
 }
 
 type InlineLink struct {
-	URL  string
-	Desc string
+	URL      string
+	Desc     string
+	Protocol string
 }
 
 func (InlineLink) Name() string {
@@ -75,7 +78,8 @@ func (InlineEmphasis) Name() string {
 }
 
 type InlineFootnote struct {
-	Num string
+	Label      string
+	Definition string
 }
 
 func (InlineFootnote) Name() string {
@@ -115,6 +119,15 @@ func isSpace(line string, index int) bool {
 	return line[index] == ' '
 }
 
+func isInList(w string, ws []string) bool {
+	for _, word := range ws {
+		if word == w {
+			return true
+		}
+	}
+	return false
+}
+
 func isValidPreBorder(line string, index int) bool {
 	if index < 0 {
 		return true
@@ -123,7 +136,7 @@ func isValidPreBorder(line string, index int) bool {
 	return unicode.IsSpace(r) || strings.ContainsRune(`-({'"`, r)
 }
 
-func isValidEndBorder(line string, index int) bool {
+func isValidPostBorder(line string, index int) bool {
 	if index >= len(line) {
 		return true
 	}
@@ -162,26 +175,44 @@ func (s *parser) ParseInlineTimestamp(d *Document, line string, i int) (*InlineT
 
 func (s *parser) ParseInlineFootnote(d *Document, line string, i int) (*InlineFootnote, int) {
 	match := footnoteRegexp.FindStringSubmatch(line[i:])
-	if match == nil || len(match) == 0 {
+	if len(match) == 0 {
 		return nil, 0
 	}
-	return &InlineFootnote{match[3]}, len(match[0])
+	return &InlineFootnote{Label: match[1], Definition: match[3]}, len(match[0])
 }
 
 func (s *parser) ParseInlinePercent(d *Document, line string, i int) (*InlinePercent, int) {
 	match := percentRegexp.FindStringSubmatch(line[i:])
-	if match == nil || len(match) == 0 {
+	if len(match) == 0 {
 		return nil, 0
 	}
 	return &InlinePercent{match[1]}, len(match[0])
 }
 
 func (s *parser) ParseInlineLink(d *Document, line string, i int) (*InlineLink, int) {
-	match := linkRegexp.FindStringSubmatch(line[i:])
-	if match == nil || len(match) == 0 {
+	match := plainLinkRegexp.FindStringSubmatch(line[i:])
+	if len(match) > 0 && isInList(match[1], d.Hyperlinks) {
+		start, idx := i+len(match[0]), i+len(match[0])
+		for idx < len(line) {
+			if unicode.IsSpace(rune(line[idx])) {
+				break
+			}
+			idx++
+		}
+		if idx > start {
+			return &InlineLink{Protocol: match[1], URL: line[start:idx]}, idx
+		}
+	}
+	match = angleLinkRegexp.FindStringSubmatch(line[i:])
+	if len(match) > 0 && isInList(match[1], d.Hyperlinks) {
+		return &InlineLink{Protocol: match[1], URL: match[2]}, len(match[0])
+	}
+
+	match = regularLinkRegexp.FindStringSubmatch(line[i:])
+	if len(match) == 0 {
 		return nil, 0
 	}
-	return &InlineLink{match[1], match[2]}, len(match[0])
+	return &InlineLink{URL: match[1], Desc: match[2]}, len(match[0])
 }
 
 func (s *parser) ParseInlineEmphasis(d *Document, line string, i int) (*InlineEmphasis, int) {
@@ -202,7 +233,7 @@ func (s *parser) ParseInlineEmphasis(d *Document, line string, i int) (*InlineEm
 	}
 	idx, end := i+1, len(line)
 	for idx < end {
-		if line[idx] == marker && idx != i+1 && isValidEndBorder(line, idx+1) {
+		if line[idx] == marker && idx != i+1 && isValidPostBorder(line, idx+1) {
 			b := &InlineEmphasis{Marker: string(marker), Children: s.ParseAllInline(d, line[i+1:idx], !needparse)}
 			if isSpace(line, idx+1) {
 				return b, idx - i + 2

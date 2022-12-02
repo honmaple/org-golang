@@ -7,22 +7,22 @@ import (
 	"unicode"
 )
 
-const HeadlineName = "Headline"
+const HeadingName = "Heading"
 
 var (
-	headlineRegexp      = regexp.MustCompile(`^(\*+)\s+(.*?)(?:\r?\n|$)`)
-	headlineTitleRegexp = regexp.MustCompile(`^(?:\[#([A-C])\])?\s*(.+?)(?:\s+:(.+?):)?$`)
+	headingRegexp      = regexp.MustCompile(`^(\*+)\s+(.*?)(?:\r?\n|$)`)
+	headingTitleRegexp = regexp.MustCompile(`^(?:\[#([A-C])\])?\s*(.+?)(?:\s+:(.+?):)?$`)
 )
 
 type Section struct {
-	*Headline
+	*Heading
 	idx      string
 	last     *Section
 	parent   *Section
 	Children []*Section
 }
 
-func (s *Section) add(node *Headline) string {
+func (s *Section) add(node *Heading) string {
 	var parent *Section
 
 	if s.last == nil {
@@ -33,13 +33,13 @@ func (s *Section) add(node *Headline) string {
 		parent = s.last.parent
 	} else {
 		parent = s.last.parent
-		for parent.Headline != nil && node.Stars <= parent.Stars {
+		for parent.Heading != nil && node.Stars <= parent.Stars {
 			parent = parent.parent
 		}
 	}
-	sec := &Section{Headline: node, parent: parent}
+	sec := &Section{Heading: node, parent: parent}
 	parent.Children = append(parent.Children, sec)
-	if parent.Headline == nil {
+	if parent.Heading == nil {
 		sec.idx = fmt.Sprintf("%d", len(parent.Children))
 	} else {
 		sec.idx = fmt.Sprintf("%s.%d", parent.idx, len(parent.Children))
@@ -48,7 +48,8 @@ func (s *Section) add(node *Headline) string {
 	return sec.idx
 }
 
-type Headline struct {
+// STARS KEYWORD PRIORITY TITLE TAGS
+type Heading struct {
 	Index      string
 	Stars      int
 	Keyword    string
@@ -59,22 +60,22 @@ type Headline struct {
 	Children   []Node
 }
 
-func (Headline) Name() string {
-	return HeadlineName
+func (Heading) Name() string {
+	return HeadingName
 }
 
-func (s *Headline) Id() string {
+func (s *Heading) Id() string {
 	if s.Properties != nil {
 		if id := s.Properties.Get("CUSTOM_ID"); id != "" {
 			return id
 		}
 	}
-	return fmt.Sprintf("headline-%s", s.Index)
+	return fmt.Sprintf("heading-%s", s.Index)
 }
 
-func (s *parser) ParseHeadline(d *Document, lines []string) (*Headline, int) {
-	match := headlineRegexp.FindStringSubmatch(lines[0])
-	if match == nil {
+func (s *parser) ParseHeading(d *Document, lines []string) (*Heading, int) {
+	match := headingRegexp.FindStringSubmatch(lines[0])
+	if len(match) == 0 {
 		return nil, 0
 	}
 	title := match[2]
@@ -89,20 +90,20 @@ func (s *parser) ParseHeadline(d *Document, lines []string) (*Headline, int) {
 			}
 		}
 	}
-	b := &Headline{
+	b := &Heading{
 		Stars:   len(match[1]),
 		Keyword: keyword,
 	}
 	b.Index = d.Sections.add(b)
 
-	tmatch := headlineTitleRegexp.FindStringSubmatch(title)
+	tmatch := headingTitleRegexp.FindStringSubmatch(title)
 	b.Priority = tmatch[1]
 	b.Title = s.ParseAllInline(d, tmatch[2], false)
 	b.Tags = strings.FieldsFunc(tmatch[3], func(r rune) bool { return r == ':' })
 
 	idx, end := 1, len(lines)
 	for idx < end {
-		if m := headlineRegexp.FindStringSubmatch(lines[idx]); m != nil && len(m[1]) <= b.Stars {
+		if m := headingRegexp.FindStringSubmatch(lines[idx]); m != nil && len(m[1]) <= b.Stars {
 			break
 		}
 		idx++

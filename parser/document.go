@@ -28,6 +28,7 @@ type (
 		Sections        *Section
 		Keywords        map[string]string
 		Properties      map[string]string
+		Hyperlinks      []string
 		TimestampFormat string
 	}
 )
@@ -74,7 +75,7 @@ func (s *parser) Parse(d *Document, lines []string) (Node, int) {
 	if node, idx := s.ParseBlankLine(d, lines); node != nil {
 		return node, idx
 	}
-	if node, idx := s.ParseHeadline(d, lines); node != nil {
+	if node, idx := s.ParseHeading(d, lines); node != nil {
 		return node, idx
 	}
 	if node, idx := s.ParseTable(d, lines); node != nil {

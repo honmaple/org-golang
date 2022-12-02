@@ -16,30 +16,30 @@ type Renderer interface {
 	RenderLineBreak(*parser.InlineLineBreak) string
 	RenderLink(*parser.InlineLink) string
 	RenderSection(*parser.Section) string
-	RenderHeadline(*parser.Headline, int) string
-	RenderKeyword(*parser.Keyword, int) string
-	RenderBlankline(*parser.Blankline, int) string
-	RenderList(*parser.List, int) string
-	RenderListItem(*parser.ListItem, int) string
-	RenderTable(*parser.Table, int) string
-	RenderTableRow(*parser.TableRow, int) string
-	RenderTableColumn(*parser.TableColumn, int) string
-	RenderBlock(*parser.Block, int) string
-	RenderBlockResult(*parser.BlockResult, int) string
-	RenderDrawer(*parser.Drawer, int) string
-	RenderHr(*parser.Hr, int) string
-	RenderParagraph(*parser.Paragragh, int) string
+	RenderHeading(*parser.Heading) string
+	RenderKeyword(*parser.Keyword) string
+	RenderBlankline(*parser.Blankline) string
+	RenderList(*parser.List) string
+	RenderListItem(*parser.ListItem) string
+	RenderTable(*parser.Table) string
+	RenderTableRow(*parser.TableRow) string
+	RenderTableColumn(*parser.TableColumn) string
+	RenderBlock(*parser.Block) string
+	RenderBlockResult(*parser.BlockResult) string
+	RenderDrawer(*parser.Drawer) string
+	RenderHr(*parser.Hr) string
+	RenderParagraph(*parser.Paragragh) string
 }
 
 func concat(r Renderer, children []parser.Node, sep string, l int) string {
 	cs := make([]string, len(children))
 	for i, child := range children {
-		cs[i] = render(r, child, l)
+		cs[i] = render(r, child)
 	}
 	return strings.Join(cs, sep)
 }
 
-func render(r Renderer, n parser.Node, l int) string {
+func render(r Renderer, n parser.Node) string {
 	switch node := n.(type) {
 	case *parser.InlineText:
 		return r.RenderText(node)
@@ -53,39 +53,40 @@ func render(r Renderer, n parser.Node, l int) string {
 		return r.RenderEmphasis(node)
 	case *parser.Section:
 		return r.RenderSection(node)
-	case *parser.Headline:
-		return r.RenderHeadline(node, l)
+	case *parser.Heading:
+		return r.RenderHeading(node)
 	case *parser.Blankline:
-		return r.RenderBlankline(node, l)
+		return r.RenderBlankline(node)
 	case *parser.Keyword:
-		return r.RenderKeyword(node, l)
+		return r.RenderKeyword(node)
 	case *parser.Block:
-		return r.RenderBlock(node, l)
+		return r.RenderBlock(node)
 	case *parser.BlockResult:
-		return r.RenderBlockResult(node, l)
+		return r.RenderBlockResult(node)
 	case *parser.Table:
-		return r.RenderTable(node, l)
+		return r.RenderTable(node)
 	case *parser.TableRow:
-		return r.RenderTableRow(node, l)
+		return r.RenderTableRow(node)
 	case *parser.TableColumn:
-		return r.RenderTableColumn(node, l)
+		return r.RenderTableColumn(node)
 	case *parser.List:
-		return r.RenderList(node, l)
+		return r.RenderList(node)
 	case *parser.ListItem:
-		return r.RenderListItem(node, l)
+		return r.RenderListItem(node)
 	case *parser.Drawer:
-		return r.RenderDrawer(node, l)
+		return r.RenderDrawer(node)
 	case *parser.Hr:
-		return r.RenderHr(node, l)
+		return r.RenderHr(node)
 	case *parser.Paragragh:
-		return r.RenderParagraph(node, l)
+		return r.RenderParagraph(node)
 	default:
 		return ""
 	}
 }
 
 type Debug struct {
-	Document *parser.Document
+	Document     *parser.Document
+	currentLevel int
 }
 
 func (s Debug) render(name string, children []parser.Node, sep string, l int) string {
@@ -99,70 +100,65 @@ func (s Debug) RenderSection(n *parser.Section) string {
 	return n.Name()
 }
 
-func (s Debug) RenderHeadline(n *parser.Headline, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderHeading(n *parser.Heading) string {
+	return s.render(n.Name(), n.Children, "\n  ", 0)
 }
 
-func (s Debug) RenderKeyword(n *parser.Keyword, l int) string {
-	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), n.Name())
+func (s Debug) RenderKeyword(n *parser.Keyword) string {
+	return n.Name()
 }
 
-func (s Debug) RenderBlock(n *parser.Block, l int) string {
+func (s Debug) RenderBlock(n *parser.Block) string {
 	name := fmt.Sprintf("%s[%s]", n.Name(), n.Type)
 	switch n.Type {
 	case "SRC", "EXAMPLE", "VERSE":
 		if len(n.Children) > 0 {
-			return fmt.Sprintf("%s%s\n%s%s",
-				strings.Repeat(" ", l*2), name,
-				strings.Repeat(" ", (l+1)*2),
-				concat(s, n.Children, ",", l+1))
+			return fmt.Sprintf("%s\n%s", name, concat(s, n.Children, ",", 0))
 		}
-		return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), name)
+		return name
 	default:
-		return s.render(name, n.Children, "\n", l)
+		return s.render(name, n.Children, "\n", 0)
 	}
 }
 
-func (s Debug) RenderBlockResult(n *parser.BlockResult, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderBlockResult(n *parser.BlockResult) string {
+	return s.render(n.Name(), n.Children, "\n", 0)
 }
 
-func (s Debug) RenderDrawer(n *parser.Drawer, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderDrawer(n *parser.Drawer) string {
+	return s.render(n.Name(), n.Children, "\n", 0)
 }
 
-func (s Debug) RenderListItem(n *parser.ListItem, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderListItem(n *parser.ListItem) string {
+	return s.render(n.Name(), n.Children, "\n", 0)
 }
 
-func (s Debug) RenderList(n *parser.List, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderList(n *parser.List) string {
+	return s.render(n.Name(), n.Children, "\n", 0)
 }
 
-func (s Debug) RenderTableColumn(n *parser.TableColumn, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderTableColumn(n *parser.TableColumn) string {
+	return s.render(n.Name(), n.Children, "\n", 0)
 }
 
-func (s Debug) RenderTableRow(n *parser.TableRow, l int) string {
-	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), n.Name())
+func (s Debug) RenderTableRow(n *parser.TableRow) string {
+	return n.Name()
 }
 
-func (s Debug) RenderTable(n *parser.Table, l int) string {
-	return s.render(n.Name(), n.Children, "\n", l)
+func (s Debug) RenderTable(n *parser.Table) string {
+	return s.render(n.Name(), n.Children, "\n  ", 0)
 }
 
-func (s Debug) RenderBlankline(n *parser.Blankline, l int) string {
-	return fmt.Sprintf("%s%s[%d]", strings.Repeat(" ", l*2), n.Name(), n.Count)
+func (s Debug) RenderBlankline(n *parser.Blankline) string {
+	return fmt.Sprintf("%s[%d]", n.Name(), n.Count)
 }
 
-func (s Debug) RenderParagraph(n *parser.Paragragh, l int) string {
-	return fmt.Sprintf("%s%s\n%s%s",
-		strings.Repeat(" ", l*2), n.Name(),
-		strings.Repeat(" ", (l+1)*2), concat(s, n.Children, ",", l+1))
+func (s Debug) RenderParagraph(n *parser.Paragragh) string {
+	return fmt.Sprintf("%s\n%s", n.Name(), concat(s, n.Children, ",", 0))
 }
 
-func (s Debug) RenderHr(n *parser.Hr, l int) string {
-	return fmt.Sprintf("%s%s", strings.Repeat(" ", l*2), n.Name())
+func (s Debug) RenderHr(n *parser.Hr) string {
+	return n.Name()
 }
 
 func (s Debug) RenderText(n *parser.InlineText) string {

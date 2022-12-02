@@ -20,6 +20,7 @@ func New(r io.Reader, opts ...Option) *parser.Document {
 		Keywords: map[string]string{
 			"TODO": todoKeywords,
 		},
+		Hyperlinks:      []string{"http", "https", "file"},
 		TimestampFormat: timestampFormat,
 	}
 	for _, opt := range opts {
