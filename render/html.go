@@ -255,5 +255,8 @@ func (s HTML) String() string {
 	if !s.Toc || s.Document.Get("toc") == "nil" {
 		return content
 	}
-	return s.RenderSection(s.Document.Sections) + content
+	if toc := s.RenderSection(s.Document.Sections); toc != "" {
+		return toc + "\n" + content
+	}
+	return content
 }

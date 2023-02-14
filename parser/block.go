@@ -47,8 +47,10 @@ func (s *parser) ParseBlock(d *Document, lines []string) (*Block, int) {
 	for idx < end {
 		if m := endBlockRegexp.FindStringSubmatch(lines[idx]); m != nil && strings.ToUpper(m[2]) == blockType {
 			b := &Block{
-				Type:       blockType,
-				Parameters: strings.Split(strings.TrimSpace(match[3]), " "),
+				Type: blockType,
+			}
+			if params := strings.TrimSpace(match[3]); params != "" {
+				b.Parameters = strings.Split(params, " ")
 			}
 			switch blockType {
 			case "VERSE":

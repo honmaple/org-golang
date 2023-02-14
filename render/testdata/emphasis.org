@@ -1,0 +1,3 @@
+Org is a /plaintext markup syntax/ developed with *Emacs* in 2003.
+The canonical parser is =org-element.el=, which provides a number of
+functions starting with ~org-element-~.

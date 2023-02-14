@@ -235,9 +235,9 @@ func (s *parser) ParseInlineEmphasis(d *Document, line string, i int) (*InlineEm
 	for idx < end {
 		if line[idx] == marker && idx != i+1 && isValidPostBorder(line, idx+1) {
 			b := &InlineEmphasis{Marker: string(marker), Children: s.ParseAllInline(d, line[i+1:idx], !needparse)}
-			if isSpace(line, idx+1) {
-				return b, idx - i + 2
-			}
+			// if isSpace(line, idx+1) {
+			//	return b, idx - i + 2
+			// }
 			return b, idx - i + 1
 		}
 		idx++
