@@ -12,6 +12,7 @@ type HTML struct {
 	Toc       bool
 	Offset    int
 	Highlight func(text string, lang string) string
+	CheckLink func(string) parser.LinkType
 }
 
 const (
@@ -75,16 +76,23 @@ func (s HTML) RenderPercent(n *parser.InlinePercent) string {
 }
 
 func (s HTML) RenderLink(n *parser.InlineLink) string {
-	if n.IsImage() {
+	var typ parser.LinkType
+	if s.CheckLink != nil {
+		typ = s.CheckLink(n.URL)
+	} else {
+		typ = n.Type()
+	}
+	switch typ {
+	case parser.ImageLink:
 		return fmt.Sprintf("<img src=\"%s\"/>", n.URL)
-	}
-	if n.IsVideo() {
+	case parser.VedioLink:
 		return fmt.Sprintf("<video src=\"%s\">%s</video>", n.URL, n.URL)
+	default:
+		if n.Desc == "" {
+			return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.URL)
+		}
+		return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.Desc)
 	}
-	if n.Desc == "" {
-		return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.URL)
-	}
-	return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.Desc)
 }
 
 func (s HTML) RenderEmphasis(n *parser.InlineEmphasis) string {
@@ -184,10 +192,14 @@ func (s HTML) RenderTable(n *parser.Table) string {
 func (s HTML) RenderBlock(n *parser.Block) string {
 	switch n.Type {
 	case "SRC":
-		if s.Highlight == nil {
-			return fmt.Sprintf(srcElement, n.Parameters[0], s.render(n.Children, "\n"))
+		lang := ""
+		if len(n.Parameters) > 0 {
+			lang = n.Parameters[0]
 		}
-		return s.Highlight(s.render(n.Children, "\n"), n.Parameters[0])
+		if s.Highlight == nil {
+			return fmt.Sprintf(srcElement, lang, s.render(n.Children, "\n"))
+		}
+		return s.Highlight(s.render(n.Children, "\n"), lang)
 	case "EXAMPLE":
 		return fmt.Sprintf(srcElement, "example", s.render(n.Children, "\n"))
 	case "CENTER":

@@ -9,6 +9,14 @@ import (
 	"unicode"
 )
 
+type LinkType int
+
+const (
+	NormalLink LinkType = iota
+	ImageLink
+	VedioLink
+)
+
 const (
 	InlineTextName      = "InlineText"
 	InlineLinkName      = "Link"
@@ -47,25 +55,29 @@ func (InlineLink) Name() string {
 	return InlineLinkName
 }
 
-func (s *InlineLink) IsImage() bool {
+func (s *InlineLink) Type() LinkType {
+	if s.Desc != "" {
+		return NormalLink
+	}
 	ext := filepath.Ext(s.URL)
 	img := map[string]bool{
-		"png":  true,
-		"jpg":  true,
-		"jpeg": true,
-		"gif":  true,
-		"svg":  true,
+		".png":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".gif":  true,
+		".svg":  true,
 	}
-	return s.Desc == "" && img[ext]
-}
-
-func (s *InlineLink) IsVideo() bool {
-	ext := filepath.Ext(s.URL)
+	if img[ext] {
+		return ImageLink
+	}
 	vid := map[string]bool{
-		"mp4":  true,
-		"webm": true,
+		".mp4":  true,
+		".webm": true,
 	}
-	return s.Desc == "" && vid[ext]
+	if vid[ext] {
+		return VedioLink
+	}
+	return NormalLink
 }
 
 type InlineEmphasis struct {
