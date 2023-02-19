@@ -31,6 +31,25 @@ type Renderer interface {
 	RenderParagraph(*parser.Paragragh) string
 }
 
+func dedent(text string) string {
+	min := -1
+
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		newline := strings.TrimLeft(line, " ")
+		if newline == "" {
+			continue
+		}
+		if indent := len(line) - len(newline); min == -1 || indent < min {
+			min = indent
+		}
+	}
+	for i, line := range lines {
+		lines[i] = strings.TrimPrefix(line, strings.Repeat(" ", min))
+	}
+	return strings.Join(lines, "\n")
+}
+
 func concat(r Renderer, children []parser.Node, sep string, l int) string {
 	cs := make([]string, len(children))
 	for i, child := range children {

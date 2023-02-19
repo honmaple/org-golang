@@ -145,7 +145,7 @@ func isValidPreBorder(line string, index int) bool {
 		return true
 	}
 	r := rune(line[index])
-	return unicode.IsSpace(r) || strings.ContainsRune(`-({'"`, r)
+	return unicode.IsSpace(r) || strings.ContainsRune(`-({'"`, r) || r > unicode.MaxASCII
 }
 
 func isValidPostBorder(line string, index int) bool {
@@ -153,7 +153,7 @@ func isValidPostBorder(line string, index int) bool {
 		return true
 	}
 	r := rune(line[index])
-	return unicode.IsSpace(r) || strings.ContainsRune(`-.,:!?;'")}[`, r)
+	return unicode.IsSpace(r) || strings.ContainsRune(`-.,:!?;'")}[`, r) || r > unicode.MaxASCII
 }
 
 func (s *parser) ParseInlineLineBreak(d *Document, line string, i int) (*InlineLineBreak, int) {

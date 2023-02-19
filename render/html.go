@@ -23,11 +23,11 @@ const (
 )
 
 const (
-	centerElement = "<p style=\"text-align:center;\">%[1]s</p>"
+	centerElement = "<div style=\"text-align:center;\">%[1]s</div>"
 	exportElement = "%[1]s"
 	quoteElement  = "<blockquote>\n%[1]s\n</blockquote>"
 	verseElement  = "<p>\n%[1]s\n</p>"
-	srcElement    = "<pre class=\"src src-%[1]s\">\n%[2]s\n</pre>"
+	srcElement    = "<pre class=\"src src-%[1]s\">%[2]s</pre>"
 )
 
 const (
@@ -101,7 +101,7 @@ func (s HTML) RenderEmphasis(n *parser.InlineEmphasis) string {
 	case "=", "~", "`":
 		return fmt.Sprintf("<code>%s</code>", text)
 	case "*":
-		return fmt.Sprintf("<bold>%s</bold>", text)
+		return fmt.Sprintf("<b>%s</b>", text)
 	case "_":
 		return fmt.Sprintf("<span style=\"text-decoration:underline\">%s</span>", text)
 	case "+":
@@ -196,12 +196,14 @@ func (s HTML) RenderBlock(n *parser.Block) string {
 		if len(n.Parameters) > 0 {
 			lang = n.Parameters[0]
 		}
+		text := dedent(s.render(n.Children, "\n"))
 		if s.Highlight == nil {
-			return fmt.Sprintf(srcElement, lang, s.render(n.Children, "\n"))
+			return fmt.Sprintf(srcElement, lang, text)
 		}
-		return s.Highlight(s.render(n.Children, "\n"), lang)
+		return s.Highlight(text, lang)
 	case "EXAMPLE":
-		return fmt.Sprintf(srcElement, "example", s.render(n.Children, "\n"))
+		text := dedent(s.render(n.Children, "\n"))
+		return fmt.Sprintf(srcElement, "example", text)
 	case "CENTER":
 		return fmt.Sprintf(centerElement, s.render(n.Children, "\n"))
 	case "QUOTE":
