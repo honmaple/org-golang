@@ -86,9 +86,10 @@ func (s *parser) ParseListItem(d *Document, lines []string) (*ListItem, int) {
 		if isBlankline(lines[idx]) {
 			spa++
 			// 连续两次空行
-			if spa == 2 {
-				break
-			}
+			// 如果空行在某个block内会有问题，暂时注释
+			// if spa == 2 {
+			//	break
+			// }
 			idx++
 			continue
 		}

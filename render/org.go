@@ -11,7 +11,7 @@ type Org struct {
 }
 
 func (s Org) render(children []parser.Node, sep string) string {
-	return concat(s, children, sep, 0)
+	return concat(s, children, sep)
 }
 
 func (s Org) RenderHeading(n *parser.Heading) string {

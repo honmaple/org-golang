@@ -15,44 +15,8 @@ type HTML struct {
 	CheckLink func(string) parser.LinkType
 }
 
-const (
-	headingElement         = "<h%[1]d>%[2]s</h%[1]d>"
-	headingKeywordElement  = "<span class=\"todo\">%[1]s</span>"
-	headingPriorityElement = "<span class=\"priority\">%[1]s</span>"
-	headingTagElement      = "<span class=\"tag\">%[1]s</span>"
-)
-
-const (
-	centerElement = "<div style=\"text-align:center;\">%[1]s</div>"
-	exportElement = "%[1]s"
-	quoteElement  = "<blockquote>\n%[1]s\n</blockquote>"
-	verseElement  = "<p>\n%[1]s\n</p>"
-	srcElement    = "<pre class=\"src src-%[1]s\">%[2]s</pre>"
-)
-
-const (
-	listitemElement         = "<li>\n%[1]s</li>"
-	listitemstatusElement   = "<code>%[1]s</code>"
-	orderlistElement        = "<ol>\n%[1]s\n</ol>"
-	unorderlistElement      = "<ul>\n%[1]s\n</ul>"
-	descriptiveElement      = "<dl>\n%[1]s\n</dl>"
-	descriptiveDescElement  = "<dd>%[1]s</dd>"
-	descriptiveTitleElement = "<dt>%[1]s</dt>"
-)
-
-const (
-	tableElement       = "<table>\n%[1]s\n</table>"
-	tableRowElement    = "<tr>\n%[1]s\n</tr>"
-	tableHeaderElement = "<th class=\"align-%[1]s\">%[2]s</th>"
-	tableColumnElement = "<td class=\"align-%[1]s\">%[2]s</td>"
-)
-
-const (
-	paragraghElement = "<p>\n%[1]s\n</p>"
-)
-
 func (s HTML) render(children []parser.Node, sep string) string {
-	return concat(s, children, sep, 0)
+	return concat(s, children, sep)
 }
 
 func (s HTML) RenderText(n *parser.InlineText) string {
@@ -117,14 +81,14 @@ func (s HTML) heading(n *parser.Heading) string {
 	var b strings.Builder
 
 	if n.Keyword != "" {
-		b.WriteString(fmt.Sprintf(headingKeywordElement, n.Keyword))
+		b.WriteString(fmt.Sprintf("<span class=\"todo\">%[1]s</span>", n.Keyword))
 	}
 	if n.Priority != "" {
-		b.WriteString(fmt.Sprintf(headingPriorityElement, n.Priority))
+		b.WriteString(fmt.Sprintf("<span class=\"priority\">%[1]s</span>", n.Priority))
 	}
 	b.WriteString(s.render(n.Title, ""))
 	for _, tag := range n.Tags {
-		b.WriteString(fmt.Sprintf(headingTagElement, tag))
+		b.WriteString(fmt.Sprintf("<span class=\"tag\">%[1]s</span>", tag))
 	}
 	return b.String()
 }
@@ -132,7 +96,7 @@ func (s HTML) heading(n *parser.Heading) string {
 func (s HTML) RenderHeading(n *parser.Heading) string {
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("<h%[1]d>", n.Stars+s.Offset))
+	b.WriteString(fmt.Sprintf("<h%[1]d id=\"%s\">", n.Stars+s.Offset, n.Id()))
 	b.WriteString(s.heading(n))
 	b.WriteString(fmt.Sprintf("</h%[1]d>", n.Stars))
 	if len(n.Children) > 0 {
@@ -149,23 +113,20 @@ func (s HTML) RenderKeyword(n *parser.Keyword) string {
 func (s HTML) RenderListItem(n *parser.ListItem) string {
 	content := s.render(n.Children, "\n")
 	if n.Status != "" {
-		content = fmt.Sprintf("%[1]s %[2]s",
-			fmt.Sprintf(listitemstatusElement, n.Status),
-			content,
-		)
+		content = fmt.Sprintf("<code>%[1]s</code>", n.Status) + " " + content
 	}
-	return fmt.Sprintf(listitemElement, content)
+	return fmt.Sprintf("<li>\n%[1]s</li>", content)
 }
 
 func (s HTML) RenderList(n *parser.List) string {
 	content := s.render(n.Children, "\n")
 	switch n.Type {
 	case parser.OrderlistName:
-		return fmt.Sprintf(orderlistElement, content)
+		return fmt.Sprintf("<ol>\n%[1]s\n</ol>", content)
 	case parser.UnorderlistName:
-		return fmt.Sprintf(unorderlistElement, content)
+		return fmt.Sprintf("<ul>\n%[1]s\n</ul>", content)
 	case parser.DescriptiveName:
-		return fmt.Sprintf(descriptiveElement, content)
+		return fmt.Sprintf("<dl>\n%[1]s\n</dl>", content)
 	default:
 		return ""
 	}
@@ -173,20 +134,20 @@ func (s HTML) RenderList(n *parser.List) string {
 
 func (s HTML) RenderTableColumn(n *parser.TableColumn) string {
 	if n.IsHeader {
-		return fmt.Sprintf(tableHeaderElement, "", s.render(n.Children, ""))
+		return fmt.Sprintf("<th class=\"align-%[1]s\">%[2]s</th>", "", s.render(n.Children, ""))
 	}
-	return fmt.Sprintf(tableColumnElement, "", s.render(n.Children, ""))
+	return fmt.Sprintf("<td class=\"align-%[1]s\">%[2]s</td>", "", s.render(n.Children, ""))
 }
 
 func (s HTML) RenderTableRow(n *parser.TableRow) string {
 	if n.Separator {
 		return ""
 	}
-	return fmt.Sprintf(tableRowElement, s.render(n.Children, "\n"))
+	return fmt.Sprintf("<tr>\n%[1]s\n</tr>", s.render(n.Children, "\n"))
 }
 
 func (s HTML) RenderTable(n *parser.Table) string {
-	return fmt.Sprintf(tableElement, s.render(n.Children, "\n"))
+	return fmt.Sprintf("<table>\n%[1]s\n</table>", s.render(n.Children, "\n"))
 }
 
 func (s HTML) RenderBlock(n *parser.Block) string {
@@ -198,28 +159,28 @@ func (s HTML) RenderBlock(n *parser.Block) string {
 		}
 		text := dedent(s.render(n.Children, "\n"))
 		if s.Highlight == nil {
-			return fmt.Sprintf(srcElement, lang, text)
+			return fmt.Sprintf("<pre class=\"src src-%[1]s\">%[2]s</pre>", lang, text)
 		}
 		return s.Highlight(text, lang)
 	case "EXAMPLE":
 		text := dedent(s.render(n.Children, "\n"))
-		return fmt.Sprintf(srcElement, "example", text)
+		return fmt.Sprintf("<pre class=\"src src-example\">%[1]s</pre>", text)
 	case "CENTER":
-		return fmt.Sprintf(centerElement, s.render(n.Children, "\n"))
+		return fmt.Sprintf("<div style=\"text-align:center;\">\n%[1]s\n</div>", s.render(n.Children, "\n"))
 	case "QUOTE":
-		return fmt.Sprintf(quoteElement, s.render(n.Children, "\n"))
+		return fmt.Sprintf("<blockquote>\n%[1]s\n</blockquote>", s.render(n.Children, "\n"))
 	case "EXPORT":
-		return fmt.Sprintf(exportElement, s.render(n.Children, "\n"))
+		return s.render(n.Children, "\n")
 	case "VERSE":
 		var b strings.Builder
 		for _, child := range n.Children {
 			if child.Name() == parser.InlineLineBreakName {
-				b.WriteString("<br />\n")
+				b.WriteString("<br />")
 				continue
 			}
 			b.WriteString(render(s, child))
 		}
-		return fmt.Sprintf(verseElement, b.String())
+		return fmt.Sprintf("<p>\n%[1]s\n</p>", b.String())
 	}
 	return s.render(n.Children, "\n")
 }
@@ -241,7 +202,7 @@ func (s HTML) RenderHr(n *parser.Hr) string {
 }
 
 func (s HTML) RenderParagraph(n *parser.Paragragh) string {
-	return fmt.Sprintf(paragraghElement, s.render(n.Children, ""))
+	return fmt.Sprintf("<p>\n%[1]s\n</p>", s.render(n.Children, ""))
 }
 
 func (s HTML) RenderSection(n *parser.Section) string {
@@ -253,7 +214,7 @@ func (s HTML) RenderSection(n *parser.Section) string {
 
 	b.WriteString("<ul>\n")
 	for _, section := range n.Children {
-		b.WriteString(fmt.Sprintf(`<li><a href="%s">%s</a>`, section.Id(), s.heading(section.Heading)))
+		b.WriteString(fmt.Sprintf(`<li><a href="#%s">%s</a>`, section.Id(), s.heading(section.Heading)))
 		if len(section.Children) > 0 {
 			b.WriteString("\n")
 			b.WriteString(s.RenderSection(section))
@@ -270,6 +231,7 @@ func (s HTML) String() string {
 		return content
 	}
 	if toc := s.RenderSection(s.Document.Sections); toc != "" {
+		toc = fmt.Sprintf(`<div id="table-of-contents"><h2>Table of Contents</h2><div id="text-table-of-contents">%s</div></div>`, toc)
 		return toc + "\n" + content
 	}
 	return content
