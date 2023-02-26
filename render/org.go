@@ -7,14 +7,22 @@ import (
 )
 
 type Org struct {
-	*parser.Document
+	Document       *parser.Document
+	RenderNodeFunc func(r Renderer, n parser.Node) string
 }
 
-func (s Org) render(children []parser.Node, sep string) string {
-	return concat(s, children, sep)
+func (r *Org) RenderNode(n parser.Node, def bool) string {
+	if def || r.RenderNodeFunc == nil {
+		return RenderNode(r, n)
+	}
+	return r.RenderNodeFunc(r, n)
 }
 
-func (s Org) RenderHeading(n *parser.Heading) string {
+func (r *Org) RenderNodes(children []parser.Node, sep string) string {
+	return RenderNodes(r, children, sep)
+}
+
+func (r *Org) RenderHeading(n *parser.Heading) string {
 	var b strings.Builder
 
 	b.WriteString(strings.Repeat("*", n.Stars))
@@ -28,7 +36,7 @@ func (s Org) RenderHeading(n *parser.Heading) string {
 		b.WriteString("]")
 	}
 	b.WriteString(" ")
-	b.WriteString(s.render(n.Title, ""))
+	b.WriteString(r.RenderNodes(n.Title, ""))
 	if len(n.Tags) > 0 {
 		b.WriteString(" :")
 		for _, tag := range n.Tags {
@@ -37,38 +45,38 @@ func (s Org) RenderHeading(n *parser.Heading) string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(s.render(n.Children, "\n"))
+	b.WriteString(r.RenderNodes(n.Children, "\n"))
 	return b.String()
 }
 
-func (s Org) RenderListItem(n *parser.ListItem) string {
+func (r *Org) RenderListItem(n *parser.ListItem) string {
 	var b strings.Builder
 	if n.Status != "" {
 		b.WriteString("[")
 		b.WriteString(n.Status)
 		b.WriteString("]")
 	}
-	b.WriteString(s.render(n.Children, "\n"))
+	b.WriteString(r.RenderNodes(n.Children, "\n"))
 	return b.String()
 }
 
-func (s Org) RenderList(n *parser.List) string {
-	return s.render(n.Children, "\n")
+func (r *Org) RenderList(n *parser.List) string {
+	return r.RenderNodes(n.Children, "\n")
 }
 
-func (s Org) RenderTableColumn(n *parser.TableColumn) string {
+func (r *Org) RenderTableColumn(n *parser.TableColumn) string {
 	return ""
 }
 
-func (s Org) RenderTableRow(n *parser.TableRow) string {
+func (r *Org) RenderTableRow(n *parser.TableRow) string {
 	return ""
 }
 
-func (s Org) RenderTable(n *parser.Table) string {
+func (r *Org) RenderTable(n *parser.Table) string {
 	return ""
 }
 
-func (s Org) RenderBlock(n *parser.Block) string {
+func (r *Org) RenderBlock(n *parser.Block) string {
 	var b strings.Builder
 
 	b.WriteString("#+begin_")
@@ -80,9 +88,9 @@ func (s Org) RenderBlock(n *parser.Block) string {
 	b.WriteString("\n")
 	if len(n.Children) > 0 {
 		if n.Type == "VERSE" {
-			b.WriteString(s.render(n.Children, ""))
+			b.WriteString(r.RenderNodes(n.Children, ""))
 		} else {
-			b.WriteString(s.render(n.Children, "\n"))
+			b.WriteString(r.RenderNodes(n.Children, "\n"))
 		}
 		b.WriteString("\n")
 	}
@@ -91,68 +99,67 @@ func (s Org) RenderBlock(n *parser.Block) string {
 	return b.String()
 }
 
-func (s Org) RenderBlockResult(n *parser.BlockResult) string {
+func (r *Org) RenderBlockResult(n *parser.BlockResult) string {
 	return ""
 }
 
-func (s Org) RenderDrawer(n *parser.Drawer) string {
+func (r *Org) RenderDrawer(n *parser.Drawer) string {
 	return ""
 }
 
-func (s Org) RenderParagraph(n *parser.Paragragh) string {
-	return s.render(n.Children, "")
+func (r *Org) RenderParagraph(n *parser.Paragragh) string {
+	return r.RenderNodes(n.Children, "")
 }
 
-func (s Org) RenderBlankline(n *parser.Blankline) string {
+func (r *Org) RenderBlankline(n *parser.Blankline) string {
 	return ""
 }
 
-func (s Org) RenderEmphasis(n *parser.InlineEmphasis) string {
+func (r *Org) RenderEmphasis(n *parser.InlineEmphasis) string {
 	var b strings.Builder
 
 	b.WriteString(n.Marker)
-	b.WriteString(s.render(n.Children, ""))
+	b.WriteString(r.RenderNodes(n.Children, ""))
 	b.WriteString(n.Marker)
 	return b.String()
 }
 
-func (s Org) RenderFootnote(*parser.InlineFootnote) string {
+func (r *Org) RenderFootnote(*parser.InlineFootnote) string {
 	return ""
 }
 
-func (s Org) RenderHr(*parser.Hr) string {
+func (r *Org) RenderHr(*parser.Hr) string {
 	return "-----"
 }
 
-func (s Org) RenderKeyword(*parser.Keyword) string {
+func (r *Org) RenderKeyword(*parser.Keyword) string {
 	return ""
 }
 
-func (s Org) RenderLineBreak(*parser.InlineLineBreak) string {
+func (r *Org) RenderLineBreak(*parser.InlineLineBreak) string {
 	return "\n"
 }
 
-func (s Org) RenderLink(*parser.InlineLink) string {
+func (r *Org) RenderLink(*parser.InlineLink) string {
 	return ""
 }
 
-func (s Org) RenderPercent(*parser.InlinePercent) string {
+func (r *Org) RenderPercent(*parser.InlinePercent) string {
 	return ""
 }
 
-func (s Org) RenderSection(*parser.Section) string {
+func (r *Org) RenderSection(*parser.Section) string {
 	return ""
 }
 
-func (s Org) RenderText(n *parser.InlineText) string {
+func (r *Org) RenderText(n *parser.InlineText) string {
 	return n.Content
 }
 
-func (s Org) RenderTimestamp(*parser.InlineTimestamp) string {
+func (r *Org) RenderTimestamp(*parser.InlineTimestamp) string {
 	return ""
 }
 
-func (s Org) String() string {
-	content := s.render(s.Document.Children, "\n")
-	return content
+func (r *Org) String() string {
+	return r.RenderNodes(r.Document.Children, "\n")
 }
