@@ -22,22 +22,22 @@ const (
 	InlineLinkName      = "Link"
 	InlinePercentName   = "Percent"
 	InlineEmphasisName  = "Emphasis"
-	InlineFootnoteName  = "Footnote"
 	InlineLineBreakName = "LineBreak"
 	InlineTimestampName = "Timestamp"
 )
 
 var (
-	plainLinkRegexp   = regexp.MustCompile(`^(\w+)://`)
-	angleLinkRegexp   = regexp.MustCompile(`^<(\w+):(.+)>`)
-	regularLinkRegexp = regexp.MustCompile(`^\[\[(.+?)\](?:\[(.+?)\])?\]`)
-	commentRegexp     = regexp.MustCompile(`^(\s*)#(.*)$`)
-	percentRegexp     = regexp.MustCompile(`^\[(\d+/\d+|\d+%)\]`)
-	footnoteRegexp    = regexp.MustCompile(`^\[fn:([\w-]*?)(:(.*?))?\]`)
-	timestampRegexp   = regexp.MustCompile(`^<(\d{4}-\d{2}-\d{2})( [A-Za-z]+)?( \d{2}:\d{2})?( \+\d+[dwmy])?>`)
+	plainLinkRegexp     = regexp.MustCompile(`^(\w+)://`)
+	angleLinkRegexp     = regexp.MustCompile(`^<(\w+):(.+)>`)
+	regularLinkRegexp   = regexp.MustCompile(`^\[\[(.+?)\](?:\[(.+?)\])?\]`)
+	commentRegexp       = regexp.MustCompile(`^(\s*)#(.*)$`)
+	percentRegexp       = regexp.MustCompile(`^\[(\d+/\d+|\d+%)\]`)
+	footnoteReferRegexp = regexp.MustCompile(`^\[fn:([\w-]*?)(:(.*?))?\]`)
+	timestampRegexp     = regexp.MustCompile(`^<(\d{4}-\d{2}-\d{2})( [A-Za-z]+)?( \d{2}:\d{2})?( \+\d+[dwmy])?>`)
 )
 
 type InlineText struct {
+	Raw     bool
 	Content string
 }
 
@@ -87,15 +87,6 @@ type InlineEmphasis struct {
 
 func (InlineEmphasis) Name() string {
 	return InlineEmphasisName
-}
-
-type InlineFootnote struct {
-	Label      string
-	Definition string
-}
-
-func (InlineFootnote) Name() string {
-	return InlineFootnoteName
 }
 
 type InlinePercent struct {
@@ -185,12 +176,17 @@ func (s *parser) ParseInlineTimestamp(d *Document, line string, i int) (*InlineT
 	return nil, 0
 }
 
-func (s *parser) ParseInlineFootnote(d *Document, line string, i int) (*InlineFootnote, int) {
-	match := footnoteRegexp.FindStringSubmatch(line[i:])
+func (s *parser) ParseInlineFootnote(d *Document, line string, i int) (*Footnote, int) {
+	match := footnoteReferRegexp.FindStringSubmatch(line[i:])
 	if len(match) == 0 {
 		return nil, 0
 	}
-	return &InlineFootnote{Label: match[1], Definition: match[3]}, len(match[0])
+	fn := &Footnote{Label: match[1], Inline: true}
+	if match[3] != "" {
+		node, _, _ := s.ParseParagragh(d, []string{match[3]})
+		fn.Definition = []Node{node}
+	}
+	return fn, len(match[0])
 }
 
 func (s *parser) ParseInlinePercent(d *Document, line string, i int) (*InlinePercent, int) {
@@ -247,9 +243,6 @@ func (s *parser) ParseInlineEmphasis(d *Document, line string, i int) (*InlineEm
 	for idx < end {
 		if line[idx] == marker && idx != i+1 && isValidPostBorder(line, idx+1) {
 			b := &InlineEmphasis{Marker: string(marker), Children: s.ParseAllInline(d, line[i+1:idx], !needparse)}
-			// if isSpace(line, idx+1) {
-			//	return b, idx - i + 2
-			// }
 			return b, idx - i + 1
 		}
 		idx++
@@ -261,11 +254,11 @@ func (s *parser) ParseInlineText(d *Document, line string, i int) (Node, Node, i
 	idx, end := i+1, len(line)
 	for idx < end {
 		if next, n := s.ParseInline(d, line, idx); next != nil {
-			return &InlineText{line[i:idx]}, next, idx - i + n
+			return &InlineText{Content: line[i:idx]}, next, idx - i + n
 		}
 		idx++
 	}
-	return &InlineText{line[i:idx]}, nil, idx - i
+	return &InlineText{Content: line[i:idx]}, nil, idx - i
 }
 
 func (s *parser) ParseInline(d *Document, line string, i int) (Node, int) {
@@ -292,7 +285,7 @@ func (s *parser) ParseInline(d *Document, line string, i int) (Node, int) {
 
 func (s *parser) ParseAllInline(d *Document, line string, raw bool) []Node {
 	if raw {
-		return []Node{&InlineText{line}}
+		return []Node{&InlineText{Content: line, Raw: raw}}
 	}
 	idx, end, nodes := 0, len(line), make([]Node, 0)
 	for idx < end {

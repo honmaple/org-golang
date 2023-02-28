@@ -22,6 +22,43 @@ func (r *Org) RenderNodes(children []parser.Node, sep string) string {
 	return RenderNodes(r, children, sep)
 }
 
+func (r *Org) RenderInlineLink(*parser.InlineLink) string {
+	return ""
+}
+
+func (r *Org) RenderInlineText(n *parser.InlineText) string {
+	return n.Content
+}
+
+func (r *Org) RenderInlinePercent(*parser.InlinePercent) string {
+	return ""
+}
+
+func (r *Org) RenderInlineEmphasis(n *parser.InlineEmphasis) string {
+	var b strings.Builder
+
+	b.WriteString(n.Marker)
+	b.WriteString(r.RenderNodes(n.Children, ""))
+	b.WriteString(n.Marker)
+	return b.String()
+}
+
+func (r *Org) RenderInlineTimestamp(*parser.InlineTimestamp) string {
+	return ""
+}
+
+func (r *Org) RenderInlineLineBreak(*parser.InlineLineBreak) string {
+	return "\n"
+}
+
+func (r *Org) RenderInlineFootnote(*parser.Footnote) string {
+	return ""
+}
+
+func (r *Org) RenderFootnote(*parser.Footnote) string {
+	return ""
+}
+
 func (r *Org) RenderHeading(n *parser.Heading) string {
 	var b strings.Builder
 
@@ -115,19 +152,6 @@ func (r *Org) RenderBlankline(n *parser.Blankline) string {
 	return ""
 }
 
-func (r *Org) RenderEmphasis(n *parser.InlineEmphasis) string {
-	var b strings.Builder
-
-	b.WriteString(n.Marker)
-	b.WriteString(r.RenderNodes(n.Children, ""))
-	b.WriteString(n.Marker)
-	return b.String()
-}
-
-func (r *Org) RenderFootnote(*parser.InlineFootnote) string {
-	return ""
-}
-
 func (r *Org) RenderHr(*parser.Hr) string {
 	return "-----"
 }
@@ -136,27 +160,7 @@ func (r *Org) RenderKeyword(*parser.Keyword) string {
 	return ""
 }
 
-func (r *Org) RenderLineBreak(*parser.InlineLineBreak) string {
-	return "\n"
-}
-
-func (r *Org) RenderLink(*parser.InlineLink) string {
-	return ""
-}
-
-func (r *Org) RenderPercent(*parser.InlinePercent) string {
-	return ""
-}
-
 func (r *Org) RenderSection(*parser.Section) string {
-	return ""
-}
-
-func (r *Org) RenderText(n *parser.InlineText) string {
-	return n.Content
-}
-
-func (r *Org) RenderTimestamp(*parser.InlineTimestamp) string {
 	return ""
 }
 

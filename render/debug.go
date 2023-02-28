@@ -10,13 +10,12 @@ import (
 type Renderer interface {
 	RenderNode(parser.Node, bool) string
 	RenderNodes([]parser.Node, string) string
-	RenderText(*parser.InlineText) string
-	RenderTimestamp(*parser.InlineTimestamp) string
-	RenderFootnote(*parser.InlineFootnote) string
-	RenderPercent(*parser.InlinePercent) string
-	RenderEmphasis(*parser.InlineEmphasis) string
-	RenderLineBreak(*parser.InlineLineBreak) string
-	RenderLink(*parser.InlineLink) string
+	RenderInlineLink(*parser.InlineLink) string
+	RenderInlineText(*parser.InlineText) string
+	RenderInlinePercent(*parser.InlinePercent) string
+	RenderInlineEmphasis(*parser.InlineEmphasis) string
+	RenderInlineTimestamp(*parser.InlineTimestamp) string
+	RenderInlineLineBreak(*parser.InlineLineBreak) string
 	RenderSection(*parser.Section) string
 	RenderHeading(*parser.Heading) string
 	RenderKeyword(*parser.Keyword) string
@@ -30,6 +29,7 @@ type Renderer interface {
 	RenderBlockResult(*parser.BlockResult) string
 	RenderDrawer(*parser.Drawer) string
 	RenderHr(*parser.Hr) string
+	RenderFootnote(*parser.Footnote) string
 	RenderParagraph(*parser.Paragragh) string
 }
 
@@ -66,15 +66,15 @@ func RenderNodes(r Renderer, children []parser.Node, sep string) string {
 func RenderNode(r Renderer, n parser.Node) string {
 	switch node := n.(type) {
 	case *parser.InlineText:
-		return r.RenderText(node)
+		return r.RenderInlineText(node)
 	case *parser.InlineLineBreak:
-		return r.RenderLineBreak(node)
+		return r.RenderInlineLineBreak(node)
 	case *parser.InlineLink:
-		return r.RenderLink(node)
+		return r.RenderInlineLink(node)
 	case *parser.InlinePercent:
-		return r.RenderPercent(node)
+		return r.RenderInlinePercent(node)
 	case *parser.InlineEmphasis:
-		return r.RenderEmphasis(node)
+		return r.RenderInlineEmphasis(node)
 	case *parser.Section:
 		return r.RenderSection(node)
 	case *parser.Heading:
@@ -101,6 +101,8 @@ func RenderNode(r Renderer, n parser.Node) string {
 		return r.RenderDrawer(node)
 	case *parser.Hr:
 		return r.RenderHr(node)
+	case *parser.Footnote:
+		return r.RenderFootnote(node)
 	case *parser.Paragragh:
 		return r.RenderParagraph(node)
 	default:
@@ -130,6 +132,34 @@ func (r *Debug) RenderNode(n parser.Node, def bool) string {
 
 func (r *Debug) RenderNodes(children []parser.Node, sep string) string {
 	return RenderNodes(r, children, sep)
+}
+
+func (r *Debug) RenderInlineText(n *parser.InlineText) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderInlineLineBreak(n *parser.InlineLineBreak) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderInlineTimestamp(n *parser.InlineTimestamp) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderInlinePercent(n *parser.InlinePercent) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderInlineLink(n *parser.InlineLink) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderInlineEmphasis(n *parser.InlineEmphasis) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderFootnote(n *parser.Footnote) string {
+	return n.Name()
 }
 
 func (r *Debug) RenderSection(n *parser.Section) string {
@@ -186,34 +216,6 @@ func (r *Debug) RenderParagraph(n *parser.Paragragh) string {
 }
 
 func (r *Debug) RenderHr(n *parser.Hr) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderText(n *parser.InlineText) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderLineBreak(n *parser.InlineLineBreak) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderFootnote(n *parser.InlineFootnote) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderTimestamp(n *parser.InlineTimestamp) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderPercent(n *parser.InlinePercent) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderLink(n *parser.InlineLink) string {
-	return n.Name()
-}
-
-func (r *Debug) RenderEmphasis(n *parser.InlineEmphasis) string {
 	return n.Name()
 }
 

@@ -99,6 +99,9 @@ func (s *parser) Parse(d *Document, lines []string) (Node, int) {
 	if node, idx := s.ParseHr(d, lines); node != nil {
 		return node, idx
 	}
+	if node, idx := s.ParseFootnote(d, lines); node != nil {
+		return node, idx
+	}
 	return nil, 0
 }
 

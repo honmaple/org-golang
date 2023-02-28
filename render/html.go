@@ -2,16 +2,21 @@ package render
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/honmaple/org-golang/parser"
 )
 
 type HTML struct {
-	Document       *parser.Document
-	Toc            bool
-	HeadingOffset  int
-	RenderNodeFunc func(r Renderer, n parser.Node) string
+	Document           *parser.Document
+	Toc                bool
+	HeadingOffset      int
+	RenderNodeFunc     func(Renderer, parser.Node) string
+	RenderFootnoteFunc func(Renderer, []*parser.Footnote, map[string]bool) string
+
+	fnList []*parser.Footnote
+	fnUsed map[string]bool
 }
 
 var htmlEscaper = strings.NewReplacer(
@@ -24,38 +29,18 @@ func htmlEscape(s string) string {
 }
 
 // If def is true, use default RenderNode
-func (r HTML) RenderNode(n parser.Node, def bool) string {
+func (r *HTML) RenderNode(n parser.Node, def bool) string {
 	if def || r.RenderNodeFunc == nil {
 		return RenderNode(r, n)
 	}
 	return r.RenderNodeFunc(r, n)
 }
 
-func (r HTML) RenderNodes(children []parser.Node, sep string) string {
+func (r *HTML) RenderNodes(children []parser.Node, sep string) string {
 	return RenderNodes(r, children, sep)
 }
 
-func (r HTML) RenderText(n *parser.InlineText) string {
-	return n.Content
-}
-
-func (r HTML) RenderLineBreak(n *parser.InlineLineBreak) string {
-	return strings.Repeat("\n", n.Count)
-}
-
-func (r HTML) RenderFootnote(n *parser.InlineFootnote) string {
-	return ""
-}
-
-func (r HTML) RenderTimestamp(n *parser.InlineTimestamp) string {
-	return ""
-}
-
-func (r HTML) RenderPercent(n *parser.InlinePercent) string {
-	return fmt.Sprintf("<code>[%s]</code>", n.Num)
-}
-
-func (r HTML) RenderLink(n *parser.InlineLink) string {
+func (r *HTML) RenderInlineLink(n *parser.InlineLink) string {
 	switch n.Type() {
 	case parser.ImageLink:
 		return fmt.Sprintf("<img src=\"%s\"/>", n.URL)
@@ -69,7 +54,14 @@ func (r HTML) RenderLink(n *parser.InlineLink) string {
 	}
 }
 
-func (r HTML) RenderEmphasis(n *parser.InlineEmphasis) string {
+func (r *HTML) RenderInlineText(n *parser.InlineText) string {
+	if n.Raw {
+		return n.Content
+	}
+	return htmlEscape(n.Content)
+}
+
+func (r *HTML) RenderInlineEmphasis(n *parser.InlineEmphasis) string {
 	text := r.RenderNodes(n.Children, "")
 	switch n.Marker {
 	case "=", "~", "`":
@@ -87,7 +79,19 @@ func (r HTML) RenderEmphasis(n *parser.InlineEmphasis) string {
 	}
 }
 
-func (r HTML) heading(n *parser.Heading) string {
+func (r *HTML) RenderInlineLineBreak(n *parser.InlineLineBreak) string {
+	return strings.Repeat("\n", n.Count)
+}
+
+func (r *HTML) RenderInlineTimestamp(n *parser.InlineTimestamp) string {
+	return ""
+}
+
+func (r *HTML) RenderInlinePercent(n *parser.InlinePercent) string {
+	return fmt.Sprintf("<code>[%s]</code>", n.Num)
+}
+
+func (r *HTML) heading(n *parser.Heading) string {
 	var b strings.Builder
 
 	if n.Keyword != "" {
@@ -103,7 +107,7 @@ func (r HTML) heading(n *parser.Heading) string {
 	return b.String()
 }
 
-func (r HTML) RenderHeading(n *parser.Heading) string {
+func (r *HTML) RenderHeading(n *parser.Heading) string {
 	var b strings.Builder
 
 	b.WriteString(fmt.Sprintf("<h%[1]d id=\"%s\">", n.Stars+r.HeadingOffset, n.Id()))
@@ -116,11 +120,11 @@ func (r HTML) RenderHeading(n *parser.Heading) string {
 	return b.String()
 }
 
-func (r HTML) RenderKeyword(n *parser.Keyword) string {
+func (r *HTML) RenderKeyword(n *parser.Keyword) string {
 	return ""
 }
 
-func (r HTML) RenderListItem(n *parser.ListItem) string {
+func (r *HTML) RenderListItem(n *parser.ListItem) string {
 	content := r.RenderNodes(n.Children, "\n")
 	if n.Status != "" {
 		content = fmt.Sprintf("<code>%[1]s</code>", n.Status) + " " + content
@@ -128,7 +132,7 @@ func (r HTML) RenderListItem(n *parser.ListItem) string {
 	return fmt.Sprintf("<li>\n%[1]s</li>", content)
 }
 
-func (r HTML) RenderList(n *parser.List) string {
+func (r *HTML) RenderList(n *parser.List) string {
 	content := r.RenderNodes(n.Children, "\n")
 	switch n.Type {
 	case parser.OrderlistName:
@@ -142,25 +146,29 @@ func (r HTML) RenderList(n *parser.List) string {
 	}
 }
 
-func (r HTML) RenderTableColumn(n *parser.TableColumn) string {
-	if n.IsHeader {
-		return fmt.Sprintf("<th class=\"align-%[1]s\">%[2]s</th>", "", r.RenderNodes(n.Children, ""))
+func (r *HTML) RenderTableColumn(n *parser.TableColumn) string {
+	align := ""
+	if n.Align != "" {
+		align = fmt.Sprintf(` align="%s"`, n.Align)
 	}
-	return fmt.Sprintf("<td class=\"align-%[1]s\">%[2]s</td>", "", r.RenderNodes(n.Children, ""))
+	if n.IsHeader {
+		return fmt.Sprintf("<th%[1]s>%[2]s</th>", align, r.RenderNodes(n.Children, ""))
+	}
+	return fmt.Sprintf("<td%[1]s>%[2]s</td>", align, r.RenderNodes(n.Children, ""))
 }
 
-func (r HTML) RenderTableRow(n *parser.TableRow) string {
-	if n.Separator {
+func (r *HTML) RenderTableRow(n *parser.TableRow) string {
+	if n.Separator || len(n.Infos) > 0 {
 		return ""
 	}
 	return fmt.Sprintf("<tr>\n%[1]s\n</tr>", r.RenderNodes(n.Children, "\n"))
 }
 
-func (r HTML) RenderTable(n *parser.Table) string {
+func (r *HTML) RenderTable(n *parser.Table) string {
 	return fmt.Sprintf("<table>\n%[1]s\n</table>", r.RenderNodes(n.Children, "\n"))
 }
 
-func (r HTML) RenderBlock(n *parser.Block) string {
+func (r *HTML) RenderBlock(n *parser.Block) string {
 	switch n.Type {
 	case "SRC":
 		lang := "unknown"
@@ -192,27 +200,66 @@ func (r HTML) RenderBlock(n *parser.Block) string {
 	return r.RenderNodes(n.Children, "\n")
 }
 
-func (r HTML) RenderBlockResult(n *parser.BlockResult) string {
+func (r *HTML) RenderBlockResult(n *parser.BlockResult) string {
 	return r.RenderNodes(n.Children, "\n")
 }
 
-func (r HTML) RenderDrawer(n *parser.Drawer) string {
+func (r *HTML) RenderDrawer(n *parser.Drawer) string {
 	return r.RenderNodes(n.Children, "\n")
 }
 
-func (r HTML) RenderBlankline(n *parser.Blankline) string {
+func (r *HTML) RenderBlankline(n *parser.Blankline) string {
 	return ""
 }
 
-func (r HTML) RenderHr(n *parser.Hr) string {
+func (r *HTML) RenderHr(n *parser.Hr) string {
 	return "<hr/>"
 }
 
-func (r HTML) RenderParagraph(n *parser.Paragragh) string {
+func (r *HTML) RenderParagraph(n *parser.Paragragh) string {
 	return fmt.Sprintf("<p>\n%[1]s\n</p>", r.RenderNodes(n.Children, ""))
 }
 
-func (r HTML) RenderSection(n *parser.Section) string {
+func (r *HTML) RenderFootnote(n *parser.Footnote) string {
+	if len(n.Definition) > 0 {
+		r.fnList = append(r.fnList, n)
+	}
+	if n.Inline && n.Label != "" {
+		r.fnUsed[n.Label] = true
+		return fmt.Sprintf(`<sup><a id="fnr.%[1]s" href="#fn.%[1]s">[%[1]s]</a></sup>`, n.Label)
+	}
+	return ""
+}
+
+func (r *HTML) RenderFootnotes(fns []*parser.Footnote, used map[string]bool) string {
+	if r.RenderFootnoteFunc != nil {
+		return r.RenderFootnoteFunc(r, fns, used)
+	}
+	if len(fns) == 0 || len(used) == 0 {
+		return ""
+	}
+	sort.SliceStable(fns, func(i, j int) bool {
+		return fns[i].Label < fns[j].Label
+	})
+	var b strings.Builder
+
+	b.WriteString("<div id=\"footnotes\"><h2 class=\"footnotes\">Footnotes: </h2>\n<ol id=\"text-footnotes\">\n")
+	for _, fn := range fns {
+		if len(fn.Definition) == 0 || !used[fn.Label] {
+			continue
+		}
+		b.WriteString("<li>")
+		b.WriteString(fmt.Sprintf(`<sup><a id="fn.%[1]s" href="#fnr.%[1]s">%[1]s</a></sup>`, fn.Label))
+		b.WriteString("<div style=\"display: inline-grid;\">")
+		b.WriteString(r.RenderNodes(fn.Definition, "\n"))
+		b.WriteString("</div>")
+		b.WriteString("\n</li>\n")
+	}
+	b.WriteString("</ol></div>")
+	return b.String()
+}
+
+func (r *HTML) RenderSection(n *parser.Section) string {
 	if len(n.Children) == 0 {
 		return ""
 	}
@@ -232,8 +279,14 @@ func (r HTML) RenderSection(n *parser.Section) string {
 	return b.String()
 }
 
-func (r HTML) String() string {
+func (r *HTML) String() string {
+	r.fnUsed = make(map[string]bool)
+
 	content := r.RenderNodes(r.Document.Children, "\n")
+	if fn := r.RenderFootnotes(r.fnList, r.fnUsed); fn != "" {
+		content = content + fn
+	}
+
 	if !r.Toc || r.Document.Get("toc") == "nil" {
 		return content
 	}
