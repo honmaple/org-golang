@@ -16,6 +16,7 @@ type Renderer interface {
 	RenderInlineEmphasis(*parser.InlineEmphasis) string
 	RenderInlineTimestamp(*parser.InlineTimestamp) string
 	RenderInlineLineBreak(*parser.InlineLineBreak) string
+	RenderInlineBackSlash(*parser.InlineBackSlash) string
 	RenderSection(*parser.Section) string
 	RenderHeading(*parser.Heading) string
 	RenderKeyword(*parser.Keyword) string
@@ -69,6 +70,8 @@ func RenderNode(r Renderer, n parser.Node) string {
 		return r.RenderInlineText(node)
 	case *parser.InlineLineBreak:
 		return r.RenderInlineLineBreak(node)
+	case *parser.InlineBackSlash:
+		return r.RenderInlineBackSlash(node)
 	case *parser.InlineLink:
 		return r.RenderInlineLink(node)
 	case *parser.InlinePercent:
@@ -135,6 +138,10 @@ func (r *Debug) RenderNodes(children []parser.Node, sep string) string {
 }
 
 func (r *Debug) RenderInlineText(n *parser.InlineText) string {
+	return n.Name()
+}
+
+func (r *Debug) RenderInlineBackSlash(n *parser.InlineBackSlash) string {
 	return n.Name()
 }
 

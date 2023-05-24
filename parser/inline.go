@@ -23,6 +23,7 @@ const (
 	InlinePercentName   = "Percent"
 	InlineEmphasisName  = "Emphasis"
 	InlineLineBreakName = "LineBreak"
+	InlineBackSlashName = "BackSlash"
 	InlineTimestampName = "Timestamp"
 )
 
@@ -105,6 +106,15 @@ func (InlineLineBreak) Name() string {
 	return InlineLineBreakName
 }
 
+type InlineBackSlash struct {
+	Count int
+	Break bool
+}
+
+func (InlineBackSlash) Name() string {
+	return InlineBackSlashName
+}
+
 type InlineTimestamp struct {
 	Time     time.Time
 	IsDate   bool
@@ -157,6 +167,27 @@ func (s *parser) ParseInlineLineBreak(d *Document, line string, i int) (*InlineL
 	}
 	if count := idx - i; count > 0 {
 		return &InlineLineBreak{count}, count
+	}
+	return nil, 0
+}
+
+func (s *parser) ParseInlineBackSlash(d *Document, line string, i int) (*InlineBackSlash, int) {
+	idx, end := i, len(line)
+	for idx < end {
+		if line[idx] != '\\' {
+			break
+		}
+		idx++
+	}
+	if count := idx - i; count > 0 {
+		n := &InlineBackSlash{count, false}
+		for ; idx < end && unicode.IsSpace(rune(line[idx])); idx++ {
+			if line[idx] == '\n' {
+				n.Break = true
+				break
+			}
+		}
+		return n, count
 	}
 	return nil, 0
 }
@@ -262,6 +293,9 @@ func (s *parser) ParseInlineText(d *Document, line string, i int) (Node, Node, i
 }
 
 func (s *parser) ParseInline(d *Document, line string, i int) (Node, int) {
+	if node, idx := s.ParseInlineBackSlash(d, line, i); node != nil {
+		return node, idx
+	}
 	if node, idx := s.ParseInlineLineBreak(d, line, i); node != nil {
 		return node, idx
 	}

@@ -55,8 +55,14 @@ func (s *parser) ParseBlock(d *Document, lines []string) (*Block, int) {
 			switch blockType {
 			case "VERSE":
 				b.Children = s.ParseAllInline(d, strings.Join(lines[1:idx], "\n"), false)
-			case "SRC", "EXAMPLE", "EXPORT":
+			case "SRC", "EXAMPLE":
 				b.Children = s.ParseAll(d, lines[1:idx], true)
+			case "EXPORT":
+				if len(b.Parameters) > 0 && strings.ToUpper(b.Parameters[0]) == "ORG" {
+					b.Children = s.ParseAll(d, lines[1:idx], false)
+				} else {
+					b.Children = s.ParseAll(d, lines[1:idx], true)
+				}
 			default:
 				b.Children = s.ParseAll(d, lines[1:idx], false)
 			}

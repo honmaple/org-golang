@@ -79,6 +79,13 @@ func (r *HTML) RenderInlineEmphasis(n *parser.InlineEmphasis) string {
 	}
 }
 
+func (r *HTML) RenderInlineBackSlash(n *parser.InlineBackSlash) string {
+	if n.Break {
+		return "<br />"
+	}
+	return ""
+}
+
 func (r *HTML) RenderInlineLineBreak(n *parser.InlineLineBreak) string {
 	return strings.Repeat("\n", n.Count)
 }
@@ -127,7 +134,11 @@ func (r *HTML) RenderKeyword(n *parser.Keyword) string {
 func (r *HTML) RenderListItem(n *parser.ListItem) string {
 	content := r.RenderNodes(n.Children, "\n")
 	if n.Status != "" {
-		content = fmt.Sprintf("<code>%[1]s</code>", n.Status) + " " + content
+		if strings.HasPrefix(content, "<p>") {
+			content = fmt.Sprintf("<p><code>[%[1]s]</code>", n.Status) + content[3:]
+		} else {
+			content = fmt.Sprintf("<code>[%[1]s]</code>", n.Status) + content
+		}
 	}
 	return fmt.Sprintf("<li>\n%[1]s</li>", content)
 }
@@ -197,7 +208,7 @@ func (r *HTML) RenderBlock(n *parser.Block) string {
 		}
 		return fmt.Sprintf("<p>\n%[1]s\n</p>", b.String())
 	}
-	return r.RenderNodes(n.Children, "\n")
+	return fmt.Sprintf("<div class=\"%[1]s-block\">\n%[2]s\n</div>", strings.ToLower(n.Type), r.RenderNodes(n.Children, "\n"))
 }
 
 func (r *HTML) RenderBlockResult(n *parser.BlockResult) string {
@@ -243,7 +254,7 @@ func (r *HTML) RenderFootnotes(fns []*parser.Footnote, used map[string]bool) str
 	})
 	var b strings.Builder
 
-	b.WriteString("<div id=\"footnotes\"><h2 class=\"footnotes\">Footnotes: </h2>\n<ol id=\"text-footnotes\">\n")
+	b.WriteString("<div id=\"footnotes\"><h2 class=\"footnotes\">Footnotes</h2>\n<ol id=\"text-footnotes\">\n")
 	for _, fn := range fns {
 		if len(fn.Definition) == 0 || !used[fn.Label] {
 			continue

@@ -47,8 +47,12 @@ func (r *Org) RenderInlineTimestamp(*parser.InlineTimestamp) string {
 	return ""
 }
 
-func (r *Org) RenderInlineLineBreak(*parser.InlineLineBreak) string {
-	return "\n"
+func (r *Org) RenderInlineLineBreak(n *parser.InlineLineBreak) string {
+	return strings.Repeat("\\", n.Count)
+}
+
+func (r *Org) RenderInlineBackSlash(n *parser.InlineBackSlash) string {
+	return strings.Repeat("\\", n.Count)
 }
 
 func (r *Org) RenderInlineFootnote(*parser.Footnote) string {
