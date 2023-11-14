@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"mime"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,9 +13,9 @@ import (
 type LinkType int
 
 const (
-	NormalLink LinkType = iota
+	RegularLink LinkType = iota
 	ImageLink
-	VedioLink
+	VideoLink
 )
 
 const (
@@ -58,27 +59,16 @@ func (InlineLink) Name() string {
 
 func (s *InlineLink) Type() LinkType {
 	if s.Desc != "" {
-		return NormalLink
+		return RegularLink
 	}
-	ext := filepath.Ext(s.URL)
-	img := map[string]bool{
-		".png":  true,
-		".jpg":  true,
-		".jpeg": true,
-		".gif":  true,
-		".svg":  true,
-	}
-	if img[ext] {
+	typ := mime.TypeByExtension(filepath.Ext(s.URL))
+	if strings.HasPrefix(typ, "image/") {
 		return ImageLink
+	} else if strings.HasPrefix(typ, "video/") {
+		return VideoLink
+	} else {
+		return RegularLink
 	}
-	vid := map[string]bool{
-		".mp4":  true,
-		".webm": true,
-	}
-	if vid[ext] {
-		return VedioLink
-	}
-	return NormalLink
 }
 
 type InlineEmphasis struct {
@@ -250,6 +240,11 @@ func (s *parser) ParseInlineLink(d *Document, line string, i int) (*InlineLink, 
 	match = regularLinkRegexp.FindStringSubmatch(line[i:])
 	if len(match) == 0 {
 		return nil, 0
+	}
+
+	parts := strings.SplitN(match[1], "://", 2)
+	if len(parts) == 2 {
+		return &InlineLink{Protocol: parts[0], URL: parts[1], Desc: match[2]}, len(match[0])
 	}
 	return &InlineLink{URL: match[1], Desc: match[2]}, len(match[0])
 }

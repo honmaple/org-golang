@@ -2,6 +2,8 @@ package render
 
 import (
 	"fmt"
+	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -41,16 +43,26 @@ func (r *HTML) RenderNodes(children []parser.Node, sep string) string {
 }
 
 func (r *HTML) RenderInlineLink(n *parser.InlineLink) string {
+	rawURL := n.URL
+	if n.Protocol != "" && n.Protocol != "file" {
+		rawURL = n.Protocol + "://" + n.URL
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
 	switch n.Type() {
 	case parser.ImageLink:
-		return fmt.Sprintf("<img src=\"%s\"/>", n.URL)
-	case parser.VedioLink:
-		return fmt.Sprintf("<video src=\"%s\">%s</video>", n.URL, n.URL)
+		return fmt.Sprintf("<img src=\"%s\" alt=\"%s\"/>", rawURL, filepath.Base(parsedURL.Path))
+	case parser.VideoLink:
+		return fmt.Sprintf("<video src=\"%s\">%s</video>", rawURL, filepath.Base(parsedURL.Path))
 	default:
-		if n.Desc == "" {
-			return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.URL)
+		desc := rawURL
+		if n.Desc != "" {
+			desc = n.Desc
 		}
-		return fmt.Sprintf("<a href=\"%s\">%s</a>", n.URL, n.Desc)
+		return fmt.Sprintf("<a href=\"%s\">%s</a>", rawURL, desc)
 	}
 }
 
